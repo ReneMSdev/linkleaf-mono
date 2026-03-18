@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+*.egg-info/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDEs
+.cursor/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
