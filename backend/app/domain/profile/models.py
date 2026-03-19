@@ -82,6 +82,8 @@ class Profile(TimestampMixin, Base):
         nullable=False,
         server_default=text("0"),
     )
+    # soft delete 
+    # ------------
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -91,7 +93,7 @@ class Profile(TimestampMixin, Base):
         DateTime(timezone=True),
         nullable=True,
     )
-
+    # ------------
     user: Mapped[User] = relationship("User", back_populates="profiles")
     theme: Mapped[Theme | None] = relationship(
         "Theme",
