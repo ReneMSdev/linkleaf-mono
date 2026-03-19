@@ -41,7 +41,7 @@ class Theme(TimestampMixin, Base):
     tier: Mapped[ThemeTier] = mapped_column(
         SAEnum(ThemeTier),
         nullable=False,
-        server_default=text(f"'{ThemeTier.FREE.value}'"),
+        server_default=text(f"'{ThemeTier.FREE.value}'::themetier"),
     )
     preview_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     config: Mapped[dict] = mapped_column(
