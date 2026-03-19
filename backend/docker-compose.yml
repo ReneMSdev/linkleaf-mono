@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: qr_backend_db_container
+    environment:
+      POSTGRES_USER: qr_app_user
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: qr_app_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
