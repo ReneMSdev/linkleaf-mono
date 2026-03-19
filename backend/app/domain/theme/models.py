@@ -39,7 +39,7 @@ class Theme(TimestampMixin, Base):
         index=True,
     )
     tier: Mapped[ThemeTier] = mapped_column(
-        SAEnum(ThemeTier),
+        SAEnum(ThemeTier, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         server_default=text(f"'{ThemeTier.FREE.value}'::themetier"),
     )

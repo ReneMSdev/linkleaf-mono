@@ -52,12 +52,12 @@ class Subscription(TimestampMixin, Base):
         index=True,
     )
     plan: Mapped[SubscriptionPlan] = mapped_column(
-        SAEnum(SubscriptionPlan),
+        SAEnum(SubscriptionPlan, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         server_default=text("'free'::subscriptionplan"),
     )
     status: Mapped[SubscriptionStatus] = mapped_column(
-        SAEnum(SubscriptionStatus),
+        SAEnum(SubscriptionStatus, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         server_default=text("'active'::subscriptionstatus"),
     )
@@ -73,7 +73,7 @@ class Subscription(TimestampMixin, Base):
     )
     revenuecat_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     provider: Mapped[SubscriptionProvider | None] = mapped_column(
-        SAEnum(SubscriptionProvider),
+        SAEnum(SubscriptionProvider, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
     )
     grace_period_end: Mapped[datetime | None] = mapped_column(
