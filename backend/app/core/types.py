@@ -11,3 +11,4 @@ ProfileID = UUID
 ThemeID = UUID
 SubscriptionID = UUID
 MediaID = UUID
+LinkID = UUID
