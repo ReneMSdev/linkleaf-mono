@@ -12,6 +12,7 @@ from app.core.types import UserID
 
 if TYPE_CHECKING:
     from app.domain.profile.models import Profile
+    from app.domain.subscription.models import Subscription
 
 
 class User(TimestampMixin, Base):
@@ -58,6 +59,12 @@ class User(TimestampMixin, Base):
         "Profile",
         back_populates="user",
         cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    subscription: Mapped[Subscription | None] = relationship(
+        "Subscription",
+        back_populates="user",
+        uselist=False,
         lazy="selectin",
     )
 
