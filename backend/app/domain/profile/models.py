@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.domain.contact.models import Contact
     from app.domain.link.models import Link
     from app.domain.media.models import Media
+    from app.domain.theme.models import Theme
     from app.domain.user.models import User
 
 
@@ -82,6 +83,11 @@ class Profile(TimestampMixin, Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="profiles")
+    theme: Mapped[Theme | None] = relationship(
+        "Theme",
+        back_populates="profiles",
+        lazy="selectin",
+    )
     links: Mapped[list[Link]] = relationship(
         "Link",
         back_populates="profile",
