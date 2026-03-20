@@ -12,3 +12,22 @@ ThemeID = UUID
 SubscriptionID = UUID
 MediaID = UUID
 LinkID = UUID
+ContactID = UUID
+
+SUPPORTED_IMAGE_TYPES: frozenset[str] = frozenset(
+    {
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    }
+)
+
+SUPPORTED_DOCUMENT_TYPES: frozenset[str] = frozenset(
+    {
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
+)
+
+SUPPORTED_MEDIA_TYPES: frozenset[str] = SUPPORTED_IMAGE_TYPES | SUPPORTED_DOCUMENT_TYPES

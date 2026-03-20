@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     DEFAULT_PAGE_SIZE: int = 20
     MAX_PAGE_SIZE: int = 100
+    VCARD_BRANDING_NOTE: str = "Created with QR App · qrapp.com"
 
 
 @lru_cache
