@@ -1,36 +1,23 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, String, text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db.base import Base, TimestampMixin
 from app.core.types import SubscriptionID, UserID
+from app.domain.subscription.enums import (
+    SubscriptionPlan,
+    SubscriptionProvider,
+    SubscriptionStatus,
+)
 
 if TYPE_CHECKING:
     from app.domain.user.models import User
-
-
-class SubscriptionPlan(StrEnum):
-    FREE = "free"
-    PREMIUM = "premium"
-
-
-class SubscriptionStatus(StrEnum):
-    ACTIVE = "active"
-    CANCELLED = "cancelled"
-    EXPIRED = "expired"
-    TRIALING = "trialing"
-
-
-class SubscriptionProvider(StrEnum):
-    STRIPE = "stripe"
-    APPLE = "apple"
-    GOOGLE_PLAY = "google_play"
 
 
 class Subscription(TimestampMixin, Base):
@@ -83,6 +70,11 @@ class Subscription(TimestampMixin, Base):
     warning_sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    entitlements: Mapped[list[str]] = mapped_column(
+        ARRAY(String),
+        nullable=False,
+        server_default=text("'{}'::text[]"),
     )
 
     user: Mapped[User] = relationship(
