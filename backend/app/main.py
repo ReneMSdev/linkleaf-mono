@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import users
 from app.config.settings import get_settings
 
 settings = get_settings()
@@ -42,6 +43,7 @@ app.add_middleware(
 )
 
 # routers registered here as api files are written
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["meta"])
