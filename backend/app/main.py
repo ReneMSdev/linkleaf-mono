@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import app.core.db.registry
 
 app = FastAPI()
 

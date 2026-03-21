@@ -7,14 +7,12 @@ boundaries for user-related operations.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.types import UserID
 
-if TYPE_CHECKING:
-    from app.domain.subscription.dto import SubscriptionInternal
+from app.domain.subscription.dto import SubscriptionInternal
 
 
 class UserBase(BaseModel):
@@ -82,3 +80,4 @@ class UserPublic(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+UserInternal.model_rebuild()
