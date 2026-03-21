@@ -125,7 +125,7 @@ async def create_from_firebase(
 # Returns UserResponse with persisted state.
 # Raises NotFoundError when the user does not exist.
 # -----------------------------------------------------------------------------
-async def update(
+async def update_user(
     user_id: UserID,
     dto: UserUpdate,
     db: AsyncSession,
@@ -170,7 +170,7 @@ async def sync_email(
 
 # -----------------------------------------------------------------------------
 # Updates the last successful-auth timestamp for audit and activity tracking.
-# Called on every successful authentication event.
+# Called on every successful authentication event via background task.
 # Returns None.
 # -----------------------------------------------------------------------------
 async def update_last_login(

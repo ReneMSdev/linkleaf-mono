@@ -40,7 +40,7 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     try:
-        return await user_service.update(current_user.id, dto, db)
+        return await user_service.update_user(current_user.id, dto, db)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ConflictError as e:

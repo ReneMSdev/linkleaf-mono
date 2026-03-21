@@ -14,12 +14,12 @@ from app.auth.exceptions import AuthException, InvalidTokenError, MissingTokenEr
 from app.auth.firebase_client import verify_token
 from app.core.db.session import AsyncSessionLocal, get_db
 from app.core.types import UserID
+from app.domain.user import service as user_service
 from app.domain.user.dto import UserInternal
 from app.domain.user.service import (
     create_from_firebase,
     get_by_firebase_uid,
     sync_email,
-    update_last_login,
 )
 
 
@@ -114,6 +114,9 @@ async def _update_last_login_background(user_id: UserID) -> None:
     """Creates a fresh DB session and updates last_login_at. Used in background tasks."""
     db = AsyncSessionLocal()
     try:
-        await update_last_login(user_id, db)
+        await user_service.update_last_login(user_id, db)
+        print(f"[background] update_last_login succeeded for {user_id}")
+    except Exception as e:
+        print(f"[background] update_last_login failed for {user_id}: {e}")
     finally:
         await db.close()
