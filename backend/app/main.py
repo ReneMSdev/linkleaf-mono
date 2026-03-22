@@ -9,10 +9,16 @@ import app.core.db.registry  # noqa: E402 — first, before any other app import
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import users
+# from app.api import profiles
+# from app.api import links
+# from app.api import contacts
+# from app.api import media
+# from app.api import themes
+# from app.api import subscriptions
 from app.config.settings import get_settings
 
 settings = get_settings()
@@ -42,8 +48,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# routers registered here as api files are written
-app.include_router(users.router)
+# v1 router — add new routers here as api files are written
+v1 = APIRouter(prefix="/v1")
+v1.include_router(users.router)
+# v1.include_router(profiles.router)
+# v1.include_router(links.router)
+# v1.include_router(contacts.router)
+# v1.include_router(media.router)
+# v1.include_router(themes.router)
+# v1.include_router(subscriptions.router)
+
+app.include_router(v1)
 
 
 @app.get("/health", tags=["meta"])
