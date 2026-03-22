@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str
     FIREBASE_SERVICE_ACCOUNT_JSON: SecretStr = Field(repr=False)
 
+    REVENUECAT_WEBHOOK_SECRET: SecretStr = Field(repr=False)
+
     GCS_BUCKET_NAME: str
     GCS_PROJECT_ID: str
 
