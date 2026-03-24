@@ -119,4 +119,43 @@ class Profile(TimestampMixin, Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    slug_history: Mapped[list["SlugHistory"]] = relationship(
+        "SlugHistory",
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
+
+class SlugHistory(TimestampMixin, Base):
+    """Tracks previous slugs for permanent redirect support.
+
+    When a user changes their profile slug, the old slug is written here.
+    GET /p/{old_slug} checks this table on a miss and returns 301 to current slug.
+    """
+
+    __tablename__ = "slug_history"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        nullable=False,
+        server_default=text("uuid_generate_v4()"),
+    )
+    profile_id: Mapped[ProfileID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("profiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    old_slug: Mapped[str] = mapped_column(
+        String(60),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    profile: Mapped[Profile] = relationship(
+        "Profile",
+        back_populates="slug_history",
+    )
