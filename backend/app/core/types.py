@@ -32,6 +32,8 @@ SUPPORTED_DOCUMENT_TYPES: frozenset[str] = frozenset(
 
 SUPPORTED_MEDIA_TYPES: frozenset[str] = SUPPORTED_IMAGE_TYPES | SUPPORTED_DOCUMENT_TYPES
 
+GRACE_PERIOD_DAYS = 30
+
 RESERVED_SLUGS: frozenset[str] = frozenset({
     "q", "p", "v1", "health", "admin", "api",
     "users", "profiles", "links", "contacts",

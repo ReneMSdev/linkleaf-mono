@@ -80,6 +80,16 @@ class ValidationError(AppException):
         super().__init__(message=message, details=details)
 
 
+class SlugMoved(Exception):
+    """Raised when a slug has moved to a new value. Not an error — expected behavior.
+
+    Carries the new slug so the API layer can issue a 301 redirect.
+    """
+
+    def __init__(self, new_slug: str) -> None:
+        self.new_slug = new_slug
+
+
 class PlanLimitError(PermissionDeniedError):
     """Raised when a subscription plan limit is exceeded.
 
