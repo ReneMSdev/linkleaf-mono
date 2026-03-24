@@ -104,11 +104,13 @@ class ProfileBase(BaseModel):
 
 
 class ProfileCreate(ProfileBase):
-    slug: str
+    slug: str | None = None  # optional — backend generates if not provided
 
     @field_validator("slug")
     @classmethod
-    def validate_slug(cls, v: str) -> str:
+    def validate_slug(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
         return _validate_slug(v)
 
     @field_validator("name")

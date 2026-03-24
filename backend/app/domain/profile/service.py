@@ -228,7 +228,12 @@ async def create(
     db: AsyncSession,
 ) -> ProfileInternal:
     await check_profile_limit(user_id, db)
-    slug = await generate_slug(dto.name, db)
+    if dto.slug is not None:
+        if await _slug_taken(dto.slug, db):
+            raise ConflictError("Slug is already taken.")
+        slug = dto.slug
+    else:
+        slug = await generate_slug(dto.name, db)
 
     count_stmt = (
         select(func.count())
