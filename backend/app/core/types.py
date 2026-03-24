@@ -31,3 +31,11 @@ SUPPORTED_DOCUMENT_TYPES: frozenset[str] = frozenset(
 )
 
 SUPPORTED_MEDIA_TYPES: frozenset[str] = SUPPORTED_IMAGE_TYPES | SUPPORTED_DOCUMENT_TYPES
+
+RESERVED_SLUGS: frozenset[str] = frozenset({
+    "q", "p", "v1", "health", "admin", "api",
+    "users", "profiles", "links", "contacts",
+    "media", "themes", "subscriptions", "static",
+    "support", "help", "about", "terms", "privacy",
+    "app",
+})
