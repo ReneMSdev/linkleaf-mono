@@ -185,6 +185,7 @@ class ProfilePublic(BaseModel):
     bio: str | None
     avatar_url: str | None
     view_count: int
+    has_sensitive_data: bool = False
     theme: ThemePublic | None
     links: list[LinkPublic]
     contact: ContactPublic | None
