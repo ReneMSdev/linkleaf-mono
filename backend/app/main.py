@@ -12,8 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import users
-# from app.api import profiles
+from app.api import profiles, users
 # from app.api import links
 # from app.api import contacts
 # from app.api import media
@@ -51,7 +50,7 @@ app.add_middleware(
 # v1 router — add new routers here as api files are written
 v1 = APIRouter(prefix="/v1")
 v1.include_router(users.router)
-# v1.include_router(profiles.router)
+v1.include_router(profiles.router)
 # v1.include_router(links.router)
 # v1.include_router(contacts.router)
 # v1.include_router(media.router)
@@ -59,6 +58,10 @@ v1.include_router(users.router)
 # v1.include_router(subscriptions.router)
 
 app.include_router(v1)
+# Public profile URLs — intentionally unversioned. These are permanent URLs
+# printed on business cards, embedded in QR codes, and shared on social media.
+# /p/{slug} and /q/{qr_token} must never change or be versioned.
+app.include_router(profiles.public_router)
 
 
 @app.get("/health", tags=["meta"])
