@@ -147,7 +147,7 @@ async def update_profile(
     db: AsyncSession = Depends(get_db),
 ) -> ProfileResponse:
     try:
-        result = await profile_service.update(profile_id, current_user.id, dto, db)
+        result = await profile_service.update_profile(profile_id, current_user.id, dto, db)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ConflictError as e:

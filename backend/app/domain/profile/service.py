@@ -268,7 +268,7 @@ async def create(
 # Returns ProfileInternal.
 # Raises NotFoundError, ConflictError if slug taken.
 # -----------------------------------------------------------------------------
-async def update(
+async def update_profile(
     profile_id: ProfileID,
     user_id: UserID,
     dto: ProfileUpdate,
