@@ -28,6 +28,7 @@ from app.domain.profile.dto import (
 )
 from app.domain.profile.models import Profile, SlugHistory
 from app.domain.subscription.service import check_profile_limit
+from app.domain.theme.service import check_theme_allowed
 
 SLUG_MAX_BASE_LENGTH = 55
 SLUG_SUFFIX_LENGTH = 4
@@ -228,6 +229,8 @@ async def create(
     db: AsyncSession,
 ) -> ProfileInternal:
     await check_profile_limit(user_id, db)
+    if dto.theme_id is not None:
+        await check_theme_allowed(dto.theme_id, user_id, db)
     if dto.slug is not None:
         if await _slug_taken(dto.slug, db):
             raise ConflictError("Slug is already taken.")
@@ -301,6 +304,9 @@ async def update_profile(
         )
         db.add(slug_history_entry)
         profile.slug = dto.slug
+
+    if dto.theme_id is not None:
+        await check_theme_allowed(dto.theme_id, user_id, db)
 
     updates = dto.model_dump(exclude_unset=True, exclude={"slug"})
     for field_name, field_value in updates.items():
