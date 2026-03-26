@@ -12,7 +12,8 @@ class ThemeResponse(BaseModel):
     tier: str
     preview_url: str | None
     config: dict
-    is_locked: bool = False  # computed at service layer — never stored
+    is_locked: bool = False
+    is_featured: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -24,5 +25,6 @@ class ThemeInternal(BaseModel):
     tier: str
     config: dict
     is_active: bool
+    is_featured: bool
 
     model_config = ConfigDict(from_attributes=True)

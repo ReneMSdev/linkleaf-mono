@@ -12,11 +12,10 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import profiles, users
+from app.api import profiles, themes, users
 # from app.api import links
 # from app.api import contacts
 # from app.api import media
-# from app.api import themes
 # from app.api import subscriptions
 from app.config.settings import get_settings
 
@@ -51,10 +50,10 @@ app.add_middleware(
 v1 = APIRouter(prefix="/v1")
 v1.include_router(users.router)
 v1.include_router(profiles.router)
+v1.include_router(themes.router)
 # v1.include_router(links.router)
 # v1.include_router(contacts.router)
 # v1.include_router(media.router)
-# v1.include_router(themes.router)
 # v1.include_router(subscriptions.router)
 
 app.include_router(v1)
@@ -62,6 +61,8 @@ app.include_router(v1)
 # printed on business cards, embedded in QR codes, and shared on social media.
 # /p/{slug} and /q/{qr_token} must never change or be versioned.
 app.include_router(profiles.public_router)
+# Public theme URLs — unversioned, no auth
+app.include_router(themes.public_router)
 
 
 @app.get("/health", tags=["meta"])

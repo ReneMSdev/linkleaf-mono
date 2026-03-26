@@ -54,6 +54,11 @@ class Theme(TimestampMixin, Base):
         nullable=False,
         server_default=text("true"),
     )
+    is_featured: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+    )
 
     profiles: Mapped[list[Profile]] = relationship(
         "Profile",
