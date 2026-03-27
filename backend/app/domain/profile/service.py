@@ -27,7 +27,7 @@ from app.domain.profile.dto import (
     ThemePublic,
 )
 from app.domain.profile.models import Profile, SlugHistory
-from app.domain.subscription.service import check_profile_limit
+from app.domain.subscription.service import check_profile_limit, get_subscription
 from app.domain.theme.service import check_theme_allowed
 
 SLUG_MAX_BASE_LENGTH = 55
@@ -179,6 +179,8 @@ async def get_public(
             )
         )
     )
+    subscription = await get_subscription(profile.user_id, db)
+    is_premium = "premium" in subscription.entitlements
 
     theme_pub = ThemePublic.model_validate(profile.theme) if profile.theme else None
     links_pub = [LinkPublic.model_validate(l) for l in filtered_links]
@@ -192,6 +194,7 @@ async def get_public(
         avatar_url=profile.avatar_url,
         view_count=profile.view_count,
         has_sensitive_data=has_sensitive_data,
+        is_premium=is_premium,
         theme=theme_pub,
         links=links_pub,
         contact=contact_pub,

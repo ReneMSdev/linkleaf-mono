@@ -188,6 +188,7 @@ class ProfilePublic(BaseModel):
     avatar_url: str | None
     view_count: int
     has_sensitive_data: bool = False
+    is_premium: bool = False  # controls branding display on public page
     theme: ThemePublic | None
     links: list[LinkPublic]
     contact: ContactPublic | None
