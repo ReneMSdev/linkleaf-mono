@@ -16,16 +16,15 @@ if TYPE_CHECKING:
 
 
 class MediaType(StrEnum):
-    AVATAR = "avatar"
-    PORTFOLIO_IMAGE = "portfolio_image"
+    IMAGE = "image"
     RESUME = "resume"
 
 
 class Media(TimestampMixin, Base):
     """Metadata for uploaded profile files stored in GCS.
 
-    This table stores only file metadata and GCS object paths for avatars,
-    portfolio images, and resumes. `deleted_at` and `restored_at` support the
+    This table stores only file metadata and GCS object paths for images
+    and resumes. `deleted_at` and `restored_at` support the
     premium soft-delete grace period flow.
     """
 

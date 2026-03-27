@@ -90,7 +90,7 @@ async def check_portfolio_limit(
         .select_from(Media)
         .where(
             Media.profile_id == profile_id,
-            Media.media_type == MediaType.PORTFOLIO_IMAGE,
+            Media.media_type == MediaType.IMAGE,
             Media.deleted_at.is_(None),
         )
     )
