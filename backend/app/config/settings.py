@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     GCS_PUBLIC_BUCKET_NAME: str   # images and avatars — publicly readable
     GCS_PRIVATE_BUCKET_NAME: str  # resumes — private, signed URLs only
     GCS_PROJECT_ID: str
+    GCS_SERVICE_ACCOUNT_JSON: SecretStr = Field(repr=False)
 
     # ── CORS ─────────────────────────────────────────
     ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
