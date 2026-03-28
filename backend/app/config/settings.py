@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     REVENUECAT_WEBHOOK_SECRET: SecretStr = Field(repr=False)
 
     # ── Google Cloud Storage ─────────────────────────
-    GCS_BUCKET_NAME: str
+    GCS_PUBLIC_BUCKET_NAME: str   # images and avatars — publicly readable
+    GCS_PRIVATE_BUCKET_NAME: str  # resumes — private, signed URLs only
     GCS_PROJECT_ID: str
 
     # ── CORS ─────────────────────────────────────────
