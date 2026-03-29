@@ -9,6 +9,8 @@ google-auth
 google-cloud-storage
 h11==0.16.0
 idna==3.11
+Pillow==12.1.1
+python-magic==0.4.27
 psycopg2-binary>=2.9.0
 pydantic==2.12.5
 pydantic_core==2.41.5
