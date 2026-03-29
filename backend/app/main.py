@@ -12,8 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import contacts, links, profiles, themes, users
-# from app.api import media
+from app.api import contacts, links, media, profiles, themes, users
 # from app.api import subscriptions
 from app.config.settings import get_settings
 
@@ -51,7 +50,7 @@ v1.include_router(profiles.router)
 v1.include_router(themes.router)
 v1.include_router(links.router)
 v1.include_router(contacts.router)
-# v1.include_router(media.router)
+v1.include_router(media.router)
 # v1.include_router(subscriptions.router)
 
 app.include_router(v1)
