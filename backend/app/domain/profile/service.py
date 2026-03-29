@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.settings import get_settings
+from app.core import storage
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError, SlugMoved
 from app.core.types import GRACE_PERIOD_DAYS, ProfileID, UserID
 from app.domain.media.models import MediaType
@@ -159,12 +161,13 @@ async def get_public(
         raise NotFoundError(f"Profile with slug '{slug}' not found.")
 
     filtered_links = [l for l in profile.links if l.is_active]
-    filtered_media = [
-        m for m in profile.media
-        if m.deleted_at is None and m.is_public
-    ]
+    # All active media — needed for resume check (resume has is_public=False)
+    active_media = [m for m in profile.media if m.deleted_at is None]
+    # Public media only — displayed on public page
+    filtered_media = [m for m in active_media if m.is_public]
 
-    has_resume = any(m.media_type == MediaType.RESUME for m in filtered_media)
+    # Check all active media for resume — not just public ones
+    has_resume = any(m.media_type == MediaType.RESUME for m in active_media)
     contact = profile.contact
     has_sensitive_data = bool(
         has_resume
@@ -185,7 +188,12 @@ async def get_public(
     theme_pub = ThemePublic.model_validate(profile.theme) if profile.theme else None
     links_pub = [LinkPublic.model_validate(l) for l in filtered_links]
     contact_pub = ContactPublic.model_validate(contact) if contact else None
-    media_pub = [MediaPublic.model_validate(m) for m in filtered_media]
+    settings = get_settings()
+    media_pub = []
+    for m in filtered_media:
+        item = MediaPublic.model_validate(m)
+        item.url = storage.get_public_url(m.gcs_path, settings.GCS_PUBLIC_BUCKET_NAME)
+        media_pub.append(item)
 
     return ProfilePublic(
         slug=profile.slug,

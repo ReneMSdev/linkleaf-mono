@@ -14,17 +14,17 @@ from app.core.db.session import AsyncSessionLocal
 from app.domain.subscription.enums import SubscriptionPlan, SubscriptionStatus
 from app.domain.subscription.service import update_from_webhook
 
-USER_ID = "2521e423-86a1-4bce-a5fe-f5b8e340f52d"
+USER_ID = "3d55616c-3021-404f-9125-91b965381112"
 
 async def test():
     async with AsyncSessionLocal() as db:
         await update_from_webhook(
             user_id=USER_ID,
-            plan=SubscriptionPlan.FREE,
+            plan=SubscriptionPlan.PREMIUM,
             status=SubscriptionStatus.ACTIVE,
-            entitlements=[],
+            entitlements=["premium"],
             db=db,
         )
-        print("Downgrade to free")
+        print("Upgrade to premium")
 
 asyncio.run(test())

@@ -87,7 +87,7 @@ class MediaPublic(BaseModel):
     mime_type: str
     file_size: int
     display_order: int | None
-    signed_url: str | None = None  # populated at service layer, never stored
+    url: str | None = None  # public URL for images — populated at service layer, never stored
     model_config = ConfigDict(from_attributes=True)
 
 
