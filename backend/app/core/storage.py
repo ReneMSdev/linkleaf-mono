@@ -55,8 +55,8 @@ def _upload_sync(
 # Called by media service after receiving confirmed upload metadata.
 # Returns the public URL for public bucket or gcs_path for private bucket.
 # destination_path format: profiles/{profile_id}/images/{uuid}.jpg
-# NOTE: not used in the primary signed URL upload flow.
-# Kept for potential server-side operations (file copying, processing).
+# Primary upload function — called by media service after server-side
+# image processing. File bytes are processed by Pillow before reaching here.
 # -----------------------------------------------------------------------------
 async def upload_file(
     file_bytes: bytes,
@@ -113,35 +113,6 @@ async def get_signed_url(
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _sign_sync)
-
-
-# -----------------------------------------------------------------------------
-# Generates a signed URL that allows Flutter to upload a file directly to GCS.
-# Flutter PUTs the file directly to this URL — FastAPI never handles file bytes.
-# Expiry default: 15 minutes — short window to complete the upload.
-# Called by media service before returning upload URL to Flutter.
-# Runs in threadpool — GCS SDK is synchronous.
-# -----------------------------------------------------------------------------
-async def generate_signed_upload_url(
-    destination_path: str,
-    mime_type: str,
-    bucket_name: str,
-    expiry_minutes: int = 15,
-) -> str:
-    client = get_storage_client()
-    bucket = client.bucket(bucket_name)
-    blob = bucket.blob(destination_path)
-
-    def _sign_upload_sync() -> str:
-        return blob.generate_signed_url(
-            expiration=timedelta(minutes=expiry_minutes),
-            method="PUT",
-            version="v4",
-            content_type=mime_type,
-        )
-
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _sign_upload_sync)
 
 
 def _delete_sync(blob: storage.Blob) -> None:
