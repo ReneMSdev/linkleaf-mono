@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     MAX_PAGE_SIZE: int = 100
 
     # ── Branding ─────────────────────────────────────
-    VCARD_BRANDING_NOTE: str = "Created with QR App · qrapp.com"
+    VCARD_BRANDING_NOTE: str = "Created with LinkLeaf · linkleaf.co"
 
 
 @lru_cache

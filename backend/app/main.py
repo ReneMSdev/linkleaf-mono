@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="QR Backend",
+    title="LinkLeaf",
     version="0.1.0",
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url=None,
