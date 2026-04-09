@@ -54,9 +54,10 @@ def configure_logging() -> None:
         level=log_level,
     )
 
-    if not is_development:
-        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-        logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    # Silence noisy loggers and prevent duplicate propagation
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").propagate = False
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
