@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.logging import get_logger
 from app.config.settings import get_settings
 from app.core.db.session import get_db
 from app.core.exceptions import NotFoundError
@@ -19,6 +20,8 @@ from app.domain.profile import service as profile_service
 from app.domain.subscription import service as subscription_service
 from app.domain.subscription.enums import SubscriptionPlan, SubscriptionStatus
 from app.domain.user import service as user_service
+
+logger = get_logger(__name__)
 
 # RevenueCat event type → (SubscriptionPlan, SubscriptionStatus, entitlements)
 EVENT_MAP: dict[str, tuple[SubscriptionPlan, SubscriptionStatus, list[str]]] = {
@@ -52,6 +55,11 @@ async def revenuecat_webhook(
     try:
         payload: dict = await request.json()
     except Exception:
+        logger.warning(
+            "webhook_ignored",
+            reason="invalid_json",
+            event_type="unknown",
+        )
         return {"status": "ignored", "reason": "invalid_json"}
 
     event = payload.get("event") or {}
@@ -59,11 +67,21 @@ async def revenuecat_webhook(
     app_user_id = event.get("app_user_id")
 
     if event_type not in EVENT_MAP:
+        logger.warning(
+            "webhook_ignored",
+            reason="unknown_event_type",
+            event_type=str(event_type),
+        )
         return {"status": "ignored", "event_type": str(event_type)}
 
     try:
         user_id = UUID(app_user_id)
     except (ValueError, TypeError):
+        logger.warning(
+            "webhook_ignored",
+            reason="invalid_user_id",
+            event_type=str(event_type),
+        )
         return {"status": "ignored", "reason": "invalid_user_id"}
 
     typed_user_id: UserID = user_id
@@ -71,6 +89,11 @@ async def revenuecat_webhook(
     try:
         await user_service.get_by_id(typed_user_id, db)
     except NotFoundError:
+        logger.warning(
+            "webhook_ignored",
+            reason="user_not_found",
+            event_type=str(event_type),
+        )
         return {"status": "ignored", "reason": "user_not_found"}
 
     plan, status, entitlements = EVENT_MAP[event_type]
@@ -84,6 +107,11 @@ async def revenuecat_webhook(
             db=db,
         )
     except NotFoundError:
+        logger.warning(
+            "webhook_ignored",
+            reason="subscription_not_found",
+            event_type=str(event_type),
+        )
         return {"status": "ignored", "reason": "subscription_not_found"}
 
     if event_type == "EXPIRATION":
@@ -100,6 +128,22 @@ async def revenuecat_webhook(
             for profile in profiles_remaining:
                 await media_service.soft_delete_excess_media(profile.id, db)
         except Exception:
+            logger.warning(
+                "webhook_ignored",
+                reason="expiration_cascade_failed",
+                event_type=str(event_type),
+            )
             return {"status": "ignored", "reason": "expiration_cascade_failed"}
+
+        logger.info(
+            "expiration_cascade_complete",
+            user_id=str(typed_user_id),
+        )
+
+    logger.info(
+        "webhook_processed",
+        event_type=event_type,
+        user_id=str(typed_user_id),
+    )
 
     return {"status": "ok", "event_type": event_type}

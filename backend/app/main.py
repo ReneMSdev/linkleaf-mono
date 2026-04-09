@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import app.core.db.registry  # noqa: E402 — first, before any other app imports
 
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import contacts, links, media, profiles, subscriptions, themes, users
+from app.config.logging import configure_logging, get_logger
 from app.config.settings import get_settings
 
 settings = get_settings()
@@ -20,10 +22,14 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     # app.core.db.registry imported at module level above — all models registered at startup
     # firebase SDK initialized on first import of firebase_client in auth/dependencies.py
     yield
     # shutdown — nothing to teardown at MVP
+
+
+request_logger = get_logger(__name__)
 
 
 app = FastAPI(
@@ -41,6 +47,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.monotonic()
+    response = await call_next(request)
+    duration_ms = round((time.monotonic() - start) * 1000, 2)
+    request_logger.info(
+        "http_request",
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=duration_ms,
+    )
+    return response
+
 
 # v1 router — add new routers here as api files are written
 v1 = APIRouter(prefix="/v1")
