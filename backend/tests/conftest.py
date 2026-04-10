@@ -87,7 +87,7 @@ async def setup_database() -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture(loop_scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def db(setup_database: object) -> AsyncIterator[AsyncSession]:
     async with TestSessionLocal() as session:
         yield session
@@ -172,8 +172,17 @@ async def anon_client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
         app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture(loop_scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def seed_free_user(db: AsyncSession) -> AsyncIterator[User]:
+    from sqlalchemy import select
+
+    # Check if user already exists before inserting
+    result = await db.execute(select(User).where(User.id == TEST_USER_ID))
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        yield existing
+        return
+
     user = User(
         id=TEST_USER_ID,
         firebase_uid=f"firebase_{TEST_USER_ID.hex}",
@@ -196,8 +205,17 @@ async def seed_free_user(db: AsyncSession) -> AsyncIterator[User]:
     yield user
 
 
-@pytest_asyncio.fixture(loop_scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def seed_premium_user(db: AsyncSession) -> AsyncIterator[User]:
+    from sqlalchemy import select
+
+    # Check if user already exists before inserting
+    result = await db.execute(select(User).where(User.id == TEST_PREMIUM_USER_ID))
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        yield existing
+        return
+
     user = User(
         id=TEST_PREMIUM_USER_ID,
         firebase_uid=f"firebase_{TEST_PREMIUM_USER_ID.hex}",
