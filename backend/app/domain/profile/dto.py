@@ -175,6 +175,7 @@ class ProfileResponse(ProfileBase):
     is_default: bool
     view_count: int
     deleted_at: datetime | None
+    restored_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -208,6 +209,7 @@ class ProfileInternal(ProfileBase):
     display_order: int
     view_count: int
     deleted_at: datetime | None
+    restored_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
