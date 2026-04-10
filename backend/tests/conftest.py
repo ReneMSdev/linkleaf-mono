@@ -83,8 +83,22 @@ async def setup_database() -> AsyncGenerator[None, None]:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
         await conn.run_sync(Base.metadata.create_all)
     yield
+    # Truncate all tables after session — clean slate for next run
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.execute(
+            text("""
+            TRUNCATE TABLE
+                media,
+                contacts,
+                links,
+                slug_history,
+                profiles,
+                subscriptions,
+                users,
+                themes
+            RESTART IDENTITY CASCADE
+        """)
+        )
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
