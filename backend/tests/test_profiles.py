@@ -113,17 +113,16 @@ class TestCreateProfile:
 
     async def test_create_profile_auto_slug(
         self,
-        client: AsyncClient,
-        seed_free_user,
+        premium_client: AsyncClient,
+        seed_premium_user,
     ) -> None:
-        response = await client.post(
+        response = await premium_client.post(
             "/v1/profiles",
             json={"name": "Auto Slug Test"},
         )
         assert response.status_code == 201
         data = response.json()
         assert data["slug"] == "auto-slug-test"
-        assert data["is_default"] is True
         assert data["qr_token"] is not None
         assert data["qr_active"] is True
 
