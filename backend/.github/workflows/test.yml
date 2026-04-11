@@ -1,7 +1,6 @@
 name: Test Suite
 
 on:
-  workflow_call:
   push:
     branches: ["**"]
   pull_request:
@@ -27,6 +26,7 @@ jobs:
           - 5432:5432
 
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       APP_NAME: LinkLeaf
       APP_ENV: test
       DEBUG: "false"
