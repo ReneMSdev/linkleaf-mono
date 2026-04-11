@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import datetime, timezone
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -101,6 +102,115 @@ async def setup_database() -> AsyncGenerator[None, None]:
         )
 
 
+@pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
+async def seed_themes(setup_database: object) -> None:
+    """Seeds themes directly into test DB — required for theme tests."""
+    from sqlalchemy import select
+
+    from app.domain.theme.models import Theme, ThemeTier
+
+    async with TestSessionLocal() as session:
+        result = await session.execute(select(Theme))
+        if result.scalars().first() is not None:
+            return
+
+        themes = [
+            Theme(
+                name="Clean Light",
+                slug="clean-light",
+                tier=ThemeTier.FREE,
+                is_active=True,
+                is_featured=True,
+                preview_url=None,
+                config={
+                    "background_color": "#FFFFFF",
+                    "text_color": "#111111",
+                    "accent_color": "#3A7CA5",
+                    "font_family": "Inter",
+                    "card_style": "flat",
+                },
+            ),
+            Theme(
+                name="Dark Mode",
+                slug="dark-mode",
+                tier=ThemeTier.FREE,
+                is_active=True,
+                is_featured=True,
+                preview_url=None,
+                config={
+                    "background_color": "#111111",
+                    "text_color": "#F5F5F5",
+                    "accent_color": "#3A7CA5",
+                    "font_family": "Inter",
+                    "card_style": "flat",
+                },
+            ),
+            Theme(
+                name="Soft Neutral",
+                slug="soft-neutral",
+                tier=ThemeTier.FREE,
+                is_active=True,
+                is_featured=False,
+                preview_url=None,
+                config={
+                    "background_color": "#F5F0EB",
+                    "text_color": "#2E2E2E",
+                    "accent_color": "#A0785A",
+                    "font_family": "Georgia",
+                    "card_style": "rounded",
+                },
+            ),
+            Theme(
+                name="Midnight Pro",
+                slug="midnight-pro",
+                tier=ThemeTier.PREMIUM,
+                is_active=True,
+                is_featured=True,
+                preview_url=None,
+                config={
+                    "background_color": "#0D0D1A",
+                    "text_color": "#E8E8FF",
+                    "accent_color": "#7B61FF",
+                    "font_family": "Inter",
+                    "card_style": "glass",
+                },
+            ),
+            Theme(
+                name="Gold Executive",
+                slug="gold-executive",
+                tier=ThemeTier.PREMIUM,
+                is_active=True,
+                is_featured=True,
+                preview_url=None,
+                config={
+                    "background_color": "#1A1400",
+                    "text_color": "#F5E6C8",
+                    "accent_color": "#C9A84C",
+                    "font_family": "Playfair Display",
+                    "card_style": "bordered",
+                },
+            ),
+            Theme(
+                name="Neon City",
+                slug="neon-city",
+                tier=ThemeTier.PREMIUM,
+                is_active=True,
+                is_featured=False,
+                preview_url=None,
+                config={
+                    "background_color": "#0A0A0A",
+                    "text_color": "#FFFFFF",
+                    "accent_color": "#00FFB2",
+                    "font_family": "Space Grotesk",
+                    "card_style": "neon",
+                },
+            ),
+        ]
+        for theme in themes:
+            session.add(theme)
+        await session.commit()
+
+
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def db(setup_database: object) -> AsyncIterator[AsyncSession]:
     async with TestSessionLocal() as session:
@@ -173,8 +283,12 @@ async def anon_client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
     async def override_get_optional_user() -> UserInternal | None:
         return None
 
+    async def override_get_current_user() -> UserInternal:
+        raise HTTPException(status_code=401, detail="Authentication token is missing.")
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_optional_user] = override_get_optional_user
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     try:
         async with AsyncClient(
