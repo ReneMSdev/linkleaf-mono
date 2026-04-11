@@ -2,9 +2,27 @@ name: Test Suite
 
 on:
   push:
-    branches: ["**"]
+    branches: ['**']
   pull_request:
     branches: [main]
+  workflow_call:
+    secrets:
+      SECRET_KEY:
+        required: true
+      FIREBASE_PROJECT_ID:
+        required: true
+      FIREBASE_SERVICE_ACCOUNT_JSON:
+        required: true
+      GCS_PUBLIC_BUCKET_NAME:
+        required: true
+      GCS_PRIVATE_BUCKET_NAME:
+        required: true
+      GCS_PROJECT_ID:
+        required: true
+      GCS_SERVICE_ACCOUNT_JSON:
+        required: true
+      REVENUECAT_WEBHOOK_SECRET:
+        required: true
 
 jobs:
   test:
@@ -29,7 +47,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       APP_NAME: LinkLeaf
       APP_ENV: test
-      DEBUG: "false"
+      DEBUG: 'false'
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       PUBLIC_BASE_URL: http://localhost:8000
       DATABASE_URL: postgresql+asyncpg://qr_app_user:devpassword@localhost/linkleaf_test
@@ -49,7 +67,7 @@ jobs:
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
