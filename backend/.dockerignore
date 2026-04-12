@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Test infrastructure
+tests/
+pytest.ini
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Dev dependencies
+requirements-dev.txt
+
+# Scripts (seed run separately as a Cloud Run Job)
+scripts/
+
+# Local env and secrets
+.env
+.env.*
+
+# Docker
+docker-compose.yml
+
+# Git
+.git/
+.gitignore
+
+# Docs and project files
+*.md
+CURSOR_INSTRUCTIONS.md
+PROJECT_STATUS.md
+LINKLEAF_BACKEND_HANDOFF.md
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.iml
