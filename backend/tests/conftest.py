@@ -14,6 +14,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+# RevenueCat webhook: must match Authorization header in tests/test_subscriptions.py
+# and be set before app imports (get_settings() reads REVENUECAT_WEBHOOK_SECRET).
+TEST_REVENUECAT_WEBHOOK_SECRET = "test-webhook-secret"
+os.environ["REVENUECAT_WEBHOOK_SECRET"] = TEST_REVENUECAT_WEBHOOK_SECRET
+
 import app.core.db.registry  # noqa: F401 — register all models on Base.metadata
 from app.auth.dependencies import get_current_user, get_optional_user
 from app.core.db.base import Base
