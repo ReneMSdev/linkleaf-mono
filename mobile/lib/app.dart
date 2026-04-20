@@ -9,7 +9,7 @@ class LinkLeafApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LinkLeaf',
-      theme: AppTheme.light,
+      theme: AppTheme.dark,
       initialRoute: AppRouter.login,
       routes: AppRouter.routes,
     );
