@@ -18,7 +18,7 @@ from app.domain.subscription.models import Subscription
 
 FREE_PROFILE_LIMIT = 1
 PREMIUM_PROFILE_LIMIT = 5
-PREMIUM_PORTFOLIO_LIMIT = 10
+PREMIUM_PORTFOLIO_LIMIT = 100
 
 
 # -----------------------------------------------------------------------------
