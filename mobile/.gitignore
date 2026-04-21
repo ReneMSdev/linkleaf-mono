@@ -51,6 +51,7 @@ lib/generated_plugin_registrant.dart
 # Secrets / env
 .env
 .env.*
+!.env.example
 secrets.dart
 **/google-services.json
 **/GoogleService-Info.plist
