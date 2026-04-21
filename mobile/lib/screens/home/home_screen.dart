@@ -4,12 +4,27 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/colors.dart';
 import '../../models/link.dart';
 
+// ── Snap constants (fractions of sheet parent height) ─────────────────────
+
+const _kPeek = 0.065; // ~drag handle strip only
+const _kMid  = 0.55;  // default — card at ~55 %
+const _kTop  = 0.93;  // card covers QR zone
+
+enum _Pos { peek, mid, top }
+
+// ── Mock data — replaced when GET /v1/profiles is wired ──────────────────
+
+const _mockQrToken = 'abc123xyz';
+const _mockSlug    = 'rene-v';
+
 const _mockLinks = [
   Link(id: '1', title: 'Portfolio', url: 'https://portfolio.example.com'),
-  Link(id: '2', title: 'GitHub', url: 'https://github.com'),
-  Link(id: '3', title: 'LinkedIn', url: 'https://linkedin.com'),
-  Link(id: '4', title: 'Dribbble', url: 'https://dribbble.com'),
+  Link(id: '2', title: 'GitHub',    url: 'https://github.com'),
+  Link(id: '3', title: 'LinkedIn',  url: 'https://linkedin.com'),
+  Link(id: '4', title: 'Dribbble',  url: 'https://dribbble.com'),
 ];
+
+// ── Screen ────────────────────────────────────────────────────────────────
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,127 +34,313 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _navIndex = 0;
+  final _sheetController = DraggableScrollableController();
+
+  _Pos   _pos         = _Pos.mid;
+  double _sheetExtent = _kMid;
+  int    _navIndex    = 0;
+
+  // Tracks extent at pointer-down to decide whether a release is a drag end.
+  double? _dragStartExtent;
+
+  // ── QR scale ─────────────────────────────────────────────────────────
+
+  // Smoothly scales 1.0 → 1.15 as the sheet moves from mid down to peek.
+  double get _qrScale {
+    if (_sheetExtent >= _kMid) return 1.0;
+    final t = (_kMid - _sheetExtent) / (_kMid - _kPeek);
+    return 1.0 + 0.15 * t.clamp(0.0, 1.0);
+  }
+
+  // ── Snap helpers ──────────────────────────────────────────────────────
+
+  _Pos _nearestPos(double extent) {
+    final d = {
+      _Pos.peek: (extent - _kPeek).abs(),
+      _Pos.mid:  (extent - _kMid).abs(),
+      _Pos.top:  (extent - _kTop).abs(),
+    };
+    return d.entries.reduce((a, b) => a.value < b.value ? a : b).key;
+  }
+
+  void _snapTo(_Pos pos) {
+    final size = switch (pos) {
+      _Pos.peek => _kPeek,
+      _Pos.mid  => _kMid,
+      _Pos.top  => _kTop,
+    };
+    setState(() {
+      _pos         = pos;
+      _sheetExtent = size;
+    });
+    if (!_sheetController.isAttached) return;
+    _sheetController.animateTo(
+      size,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutBack, // spring overshoot
+    );
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final mq     = MediaQuery.of(context);
+    final topPad = mq.padding.top;
+    final botPad = mq.padding.bottom;
+
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: Column(
+      body: Stack(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top),
-          const _TopBar(),
-          const _QRZone(),
-          const Expanded(child: _ProfileCard()),
+          // QR zone — sits behind the draggable card
+          Positioned.fill(
+            child: Column(
+              children: [
+                SizedBox(height: topPad + 50),
+                Expanded(
+                  child: _QRZone(
+                    qrData:  'https://linkleaf.co/q/$_mockQrToken',
+                    slug:    _mockSlug,
+                    pos:     _pos,
+                    qrScale: _qrScale,
+                    onTap:   () => _snapTo(_Pos.peek),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Top bar — floats above the sheet
+          Positioned(
+            top: topPad, left: 0, right: 0, height: 50,
+            child: _TopBar(slug: _mockSlug, onEyeTap: () {}),
+          ),
+
+          // Draggable card with manual spring snap on pointer release
+          Listener(
+            onPointerDown: (_) {
+              if (_sheetController.isAttached) {
+                _dragStartExtent = _sheetController.size;
+              }
+            },
+            onPointerUp: (_) {
+              final start = _dragStartExtent;
+              _dragStartExtent = null;
+              if (start == null || !_sheetController.isAttached) return;
+              // Only snap if the user actually dragged (not a tap on a button)
+              if ((_sheetController.size - start).abs() > 0.015) {
+                _snapTo(_nearestPos(_sheetController.size));
+              }
+            },
+            child: NotificationListener<DraggableScrollableNotification>(
+              onNotification: (n) {
+                setState(() {
+                  _sheetExtent = n.extent;
+                  _pos         = _nearestPos(n.extent);
+                });
+                return false;
+              },
+              child: DraggableScrollableSheet(
+                controller:       _sheetController,
+                initialChildSize: _kMid,
+                minChildSize:     _kPeek,
+                maxChildSize:     _kTop,
+                snap:             false, // we handle snapping with spring curve
+                builder: (context, scrollController) {
+                  return _CardSheet(
+                    scrollController: scrollController,
+                    onHandleTap: () {
+                      if (_pos == _Pos.peek) _snapTo(_Pos.mid);
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: _BottomNav(
         currentIndex: _navIndex,
-        bottomPad: bottomPad,
-        onTap: (i) => setState(() => _navIndex = i),
+        bottomPad:    botPad,
+        onTap:        (i) => setState(() => _navIndex = i),
       ),
     );
   }
 }
 
-// ── Top bar ───────────────────────────────────────────────────────────────
+// ── QR Zone ───────────────────────────────────────────────────────────────
 
-class _TopBar extends StatelessWidget {
-  const _TopBar();
+class _QRZone extends StatelessWidget {
+  final String       qrData;
+  final String       slug;
+  final _Pos         pos;
+  final double       qrScale;
+  final VoidCallback onTap;
+
+  const _QRZone({
+    required this.qrData,
+    required this.slug,
+    required this.pos,
+    required this.qrScale,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            const _HamburgerIcon(),
-            const Spacer(),
-            Text(
-              '@rene-v',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.muted,
-                letterSpacing: 0.2,
+    final isPeek = pos == _Pos.peek;
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: AnimatedScale(
+              scale:    qrScale,
+              duration: const Duration(milliseconds: 150),
+              child: Container(
+                decoration: BoxDecoration(
+                  color:        AppColors.card,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(10),
+                child: QrImageView(
+                  data:            qrData,
+                  version:         QrVersions.auto,
+                  size:            128,
+                  backgroundColor: AppColors.card,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color:    AppColors.cardText,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color:           AppColors.cardText,
+                  ),
+                ),
               ),
             ),
-            const Spacer(),
-            const _EyeIcon(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HamburgerIcon extends StatelessWidget {
-  const _HamburgerIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 36,
-      height: 36,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(width: 22, height: 1.5, color: AppColors.text),
-          const SizedBox(height: 5),
-          Container(width: 16, height: 1.5, color: AppColors.muted),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'linkleaf.co/q/$slug',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              color:    AppColors.muted,
+            ),
+          ),
+          const SizedBox(height: 4),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Text(
+              isPeek ? 'tap card to return' : 'drag up for profile',
+              key: ValueKey(isPeek),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color:    const Color(0x998C8478),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _EyeIcon extends StatelessWidget {
-  const _EyeIcon();
+// ── Card sheet ────────────────────────────────────────────────────────────
+
+class _CardSheet extends StatelessWidget {
+  final ScrollController scrollController;
+  final VoidCallback     onHandleTap;
+
+  const _CardSheet({
+    required this.scrollController,
+    required this.onHandleTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 36,
-      height: 36,
-      child: Center(
-        child: Icon(Icons.remove_red_eye_outlined, color: AppColors.muted, size: 22),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.only(
+          topLeft:  Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color:      Color(0x521A1814),
+            blurRadius: 32,
+            offset:     Offset(0, -8),
+          ),
+        ],
+      ),
+      // Always render full content — the sheet height clips naturally at peek.
+      child: ListView(
+        controller: scrollController,
+        padding:    EdgeInsets.zero,
+        physics:    const ClampingScrollPhysics(),
+        children: [
+          _DragHandle(onTap: onHandleTap),
+          const _AvatarSection(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+          ),
+          ..._mockLinks.map(
+            (l) => Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
+              child: _LinkPill(link: l),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const _ContactChips(),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _PremiumLockedSection(label: 'Portfolio images'),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _PremiumLockedSection(label: 'Resume'),
+          ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
 }
 
-// ── QR zone ───────────────────────────────────────────────────────────────
+// ── Drag handle ───────────────────────────────────────────────────────────
 
-class _QRZone extends StatelessWidget {
-  const _QRZone();
+class _DragHandle extends StatelessWidget {
+  final VoidCallback? onTap;
+  const _DragHandle({this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 165,
-      child: Center(
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: QrImageView(
-            data: 'https://linkleaf.co/@rene-v',
-            version: QrVersions.auto,
-            size: 120,
-            backgroundColor: AppColors.card,
-            eyeStyle: const QrEyeStyle(
-              eyeShape: QrEyeShape.square,
-              color: AppColors.cardText,
-            ),
-            dataModuleStyle: const QrDataModuleStyle(
-              dataModuleShape: QrDataModuleShape.square,
-              color: AppColors.cardText,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        height: 28,
+        child: Center(
+          child: Container(
+            width: 32,
+            height: 4,
+            decoration: BoxDecoration(
+              color:        AppColors.cardBorder,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
         ),
@@ -148,73 +349,7 @@ class _QRZone extends StatelessWidget {
   }
 }
 
-// ── Profile card ──────────────────────────────────────────────────────────
-
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x521A1814),
-                blurRadius: 32,
-                offset: Offset(0, -8),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Drag handle
-              Padding(
-                padding: const EdgeInsets.fromLTRB(0, 10, 0, 6),
-                child: Center(
-                  child: Container(
-                    width: 32,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-              // Avatar + name
-              const _AvatarSection(),
-              // Divider
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
-              ),
-              // Links
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                  itemCount: _mockLinks.length,
-                  itemBuilder: (_, i) => _LinkPill(link: _mockLinks[i]),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Positioned(
-          bottom: 16,
-          right: 16,
-          child: _EditFAB(),
-        ),
-      ],
-    );
-  }
-}
+// ── Avatar section ────────────────────────────────────────────────────────
 
 class _AvatarSection extends StatelessWidget {
   const _AvatarSection();
@@ -222,17 +357,16 @@ class _AvatarSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 6, 0, 12),
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
       child: Column(
         children: [
           Container(
-            width: 68,
-            height: 68,
+            width: 68, height: 68,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                end:   Alignment.bottomRight,
                 colors: [Color(0x55C9B99A), Color(0x22C9B99A)],
               ),
             ),
@@ -248,7 +382,7 @@ class _AvatarSection extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF8C7E6E),
+                    color: const Color(0xFF8C7E6E),
                   ),
                 ),
               ),
@@ -260,8 +394,8 @@ class _AvatarSection extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.cardText,
-              height: 1.1,
+              color:    AppColors.cardText,
+              height:   1.1,
             ),
           ),
           const SizedBox(height: 2),
@@ -269,15 +403,15 @@ class _AvatarSection extends StatelessWidget {
             'Product Designer · Salo Labs',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
-              color: AppColors.cardMuted,
+              color:    AppColors.cardMuted,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             '143 views',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11,
-              color: Color(0x998C8070),
+              color: const Color(0x998C8070),
             ),
           ),
         ],
@@ -292,7 +426,7 @@ class _LinkPill extends StatelessWidget {
   final Link link;
   const _LinkPill({required this.link});
 
-  Color get _iconColor {
+  Color get _iconBg {
     switch (link.title.toLowerCase()) {
       case 'portfolio': return const Color(0xFFFF6B35);
       case 'github':    return const Color(0xFF1A1814);
@@ -305,16 +439,15 @@ class _LinkPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 7),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.cardBorder),
+        color:        AppColors.card,
+        border:       Border.all(color: AppColors.cardBorder),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F1A1814),
+            color:      Color(0x0F1A1814),
             blurRadius: 3,
-            offset: Offset(0, 1),
+            offset:     Offset(0, 1),
           ),
         ],
       ),
@@ -322,24 +455,22 @@ class _LinkPill extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {},
+          onTap: () {}, // tracking only — no navigation yet
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             child: Row(
               children: [
                 Container(
-                  width: 24,
-                  height: 24,
+                  width: 24, height: 24,
                   decoration: BoxDecoration(
-                    color: _iconColor,
+                    color:        _iconBg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Center(
                     child: Container(
-                      width: 10,
-                      height: 10,
+                      width: 10, height: 10,
                       decoration: BoxDecoration(
-                        color: const Color(0xE5FFFFFF),
+                        color:        const Color(0xE5FFFFFF),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -350,15 +481,15 @@ class _LinkPill extends StatelessWidget {
                   child: Text(
                     link.title,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
+                      fontSize:   14,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.cardText,
+                      color:      AppColors.cardText,
                     ),
                   ),
                 ),
                 const Icon(
                   Icons.chevron_right,
-                  size: 16,
+                  size:  16,
                   color: Color(0x4D1A1814),
                 ),
               ],
@@ -370,33 +501,172 @@ class _LinkPill extends StatelessWidget {
   }
 }
 
-// ── Edit FAB ──────────────────────────────────────────────────────────────
+// ── Contact chips ─────────────────────────────────────────────────────────
 
-class _EditFAB extends StatelessWidget {
-  const _EditFAB();
+class _ContactChips extends StatelessWidget {
+  const _ContactChips();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: const [
+          Expanded(child: _ContactChip(label: 'Email',        icon: Icons.mail_outline)),
+          SizedBox(width: 8),
+          Expanded(child: _ContactChip(label: 'Phone',        icon: Icons.phone_outlined)),
+          SizedBox(width: 8),
+          Expanded(child: _ContactChip(label: 'Save contact', icon: Icons.person_add_outlined)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactChip extends StatelessWidget {
+  final String   label;
+  final IconData icon;
+  const _ContactChip({required this.label, required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
-      decoration: const BoxDecoration(
-        color: AppColors.cardText,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x381A1814),
-            blurRadius: 16,
-            offset: Offset(0, 4),
+      height: 38,
+      decoration: BoxDecoration(
+        color:        AppColors.cardSub,
+        border:       Border.all(color: AppColors.cardBorder),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () {},
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 13, color: AppColors.cardMuted),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize:   11,
+                  fontWeight: FontWeight.w500,
+                  color:      AppColors.cardMuted,
+                ),
+              ),
+            ],
           ),
-          BoxShadow(
-            color: Color(0x1F1A1814),
-            blurRadius: 4,
-            offset: Offset(0, 1),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Premium locked section ────────────────────────────────────────────────
+
+class _PremiumLockedSection extends StatelessWidget {
+  final String label;
+  const _PremiumLockedSection({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 68,
+      decoration: BoxDecoration(
+        color:        AppColors.cardSub,
+        border:       Border.all(color: AppColors.cardBorder),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.lock_outline, size: 15, color: AppColors.cardBorder),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              color:    AppColors.cardBorder,
+            ),
+          ),
+          Text(
+            ' · Premium',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color:    const Color(0xFFD0C8BC),
+            ),
           ),
         ],
       ),
-      child: const Icon(Icons.edit_outlined, color: AppColors.card, size: 16),
+    );
+  }
+}
+
+// ── Top bar ───────────────────────────────────────────────────────────────
+
+class _TopBar extends StatelessWidget {
+  final String       slug;
+  final VoidCallback onEyeTap;
+  const _TopBar({required this.slug, required this.onEyeTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            const _HamburgerIcon(),
+            const Spacer(),
+            Text(
+              '@$slug',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize:    13,
+                fontWeight:  FontWeight.w500,
+                color:       AppColors.muted,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap:     onEyeTap,
+              behavior:  HitTestBehavior.opaque,
+              child: const SizedBox(
+                width: 36, height: 36,
+                child: Center(
+                  child: Icon(
+                    Icons.remove_red_eye_outlined,
+                    color: AppColors.muted,
+                    size:  22,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HamburgerIcon extends StatelessWidget {
+  const _HamburgerIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 36, height: 36,
+      child: Column(
+        mainAxisAlignment:  MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(width: 22, height: 1.5, color: AppColors.text),
+          const SizedBox(height: 5),
+          Container(width: 16, height: 1.5, color: AppColors.muted),
+        ],
+      ),
     );
   }
 }
@@ -404,7 +674,7 @@ class _EditFAB extends StatelessWidget {
 // ── Bottom nav ────────────────────────────────────────────────────────────
 
 class _NavTab {
-  final String label;
+  final String   label;
   final IconData icon;
   final IconData activeIcon;
   const _NavTab(this.label, this.icon, this.activeIcon);
@@ -417,9 +687,9 @@ const _navTabs = [
 ];
 
 class _BottomNav extends StatelessWidget {
-  final int currentIndex;
-  final double bottomPad;
-  final ValueChanged<int> onTap;
+  final int                currentIndex;
+  final double             bottomPad;
+  final ValueChanged<int>  onTap;
 
   const _BottomNav({
     required this.currentIndex,
@@ -432,17 +702,17 @@ class _BottomNav extends StatelessWidget {
     return Container(
       height: 62 + bottomPad,
       decoration: const BoxDecoration(
-        color: AppColors.surface,
+        color:  AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(_navTabs.length, (i) {
-          final tab = _navTabs[i];
+          final tab    = _navTabs[i];
           final active = i == currentIndex;
-          final color = active ? AppColors.accent : AppColors.muted;
+          final color  = active ? AppColors.accent : AppColors.muted;
           return GestureDetector(
-            onTap: () => onTap(i),
+            onTap:    () => onTap(i),
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
               width: 72,
@@ -454,9 +724,9 @@ class _BottomNav extends StatelessWidget {
                   Text(
                     tab.label,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10,
+                      fontSize:   10,
                       fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                      color: color,
+                      color:      color,
                       letterSpacing: 0.2,
                     ),
                   ),
