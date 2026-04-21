@@ -1,6 +1,9 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/colors.dart';
 import '../../models/link.dart';
 
@@ -10,12 +13,33 @@ const _kPeek = 0.065; // ~drag handle strip only
 const _kMid  = 0.55;  // default — card at ~55 %
 const _kTop  = 0.93;  // card covers QR zone
 
+const _kNavBarHeight = 62.0;
+
 enum _Pos { peek, mid, top }
+
+enum _PreviewPhase {
+  idle,
+  animatingIn,
+  ready,
+  animatingOutUi,
+  animatingOutSheet,
+}
 
 // ── Mock data — replaced when GET /v1/profiles is wired ──────────────────
 
 const _mockQrToken = 'abc123xyz';
 const _mockSlug    = 'rene-v';
+
+/// Placeholder until GET /v1/profiles provides id.
+const _mockProfileId = 'mock-profile-id';
+
+/// Placeholder until profile payload includes this flag.
+const _mockHasSensitiveData = true;
+
+const _apiBase = String.fromEnvironment(
+  'LINKLEAF_API_BASE',
+  defaultValue: 'https://api.linkleaf.co',
+);
 
 const _mockLinks = [
   Link(id: '1', title: 'Portfolio', url: 'https://portfolio.example.com'),
@@ -33,12 +57,21 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final _sheetController = DraggableScrollableController();
+  late final AnimationController _previewExpandController;
+  late final AnimationController _previewExitUiController;
+  late final CurvedAnimation       _previewExpandCurve;
+  final ScrollController _previewScrollController = ScrollController();
 
   _Pos   _pos         = _Pos.mid;
   double _sheetExtent = _kMid;
   int    _navIndex    = 0;
+
+  _PreviewPhase _previewPhase = _PreviewPhase.idle;
+  _Pos          _previewEntryPosition = _Pos.mid;
+  double        _previewEntryExtent   = _kMid;
+  double        _cardScrollPixels       = 0;
 
   // Tracks extent at pointer-down to decide whether a release is a drag end.
   double? _dragStartExtent;
@@ -81,10 +114,107 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  bool get _previewCardActive => _previewPhase != _PreviewPhase.idle;
+
+  bool get _previewChromeInteractive =>
+      _previewPhase == _PreviewPhase.ready ||
+      _previewPhase == _PreviewPhase.animatingOutUi;
+
+  double _chromeOpacity() {
+    final linearExpand = _previewExpandController.value;
+    switch (_previewPhase) {
+      case _PreviewPhase.idle:
+      case _PreviewPhase.animatingOutSheet:
+        return 0;
+      case _PreviewPhase.animatingIn:
+        return const Interval(200 / 350, 1.0).transform(linearExpand);
+      case _PreviewPhase.ready:
+        return 1;
+      case _PreviewPhase.animatingOutUi:
+        return 1 - _previewExitUiController.value;
+    }
+  }
+
+  void _onPreviewExpandStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed &&
+        _previewPhase == _PreviewPhase.animatingIn) {
+      setState(() => _previewPhase = _PreviewPhase.ready);
+    }
+    if (status == AnimationStatus.dismissed &&
+        _previewPhase == _PreviewPhase.animatingOutSheet) {
+      setState(() => _previewPhase = _PreviewPhase.idle);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_sheetController.isAttached) return;
+        _sheetController.jumpTo(_previewEntryExtent);
+      });
+    }
+  }
+
+  void _onPreviewExitUiStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    if (_previewPhase != _PreviewPhase.animatingOutUi) return;
+    setState(() => _previewPhase = _PreviewPhase.animatingOutSheet);
+    _previewExitUiController.reset();
+    _previewExpandController.reverse();
+  }
+
+  Future<void> _openVcard() async {
+    final uri = Uri.parse('$_apiBase/contacts/$_mockProfileId/vcard');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _onEyeTap() {
+    if (_previewPhase != _PreviewPhase.idle) return;
+    _previewEntryPosition = _pos;
+    _previewEntryExtent = _sheetController.isAttached
+        ? _sheetController.size
+        : _sheetExtent;
+    setState(() => _previewPhase = _PreviewPhase.animatingIn);
+    _previewExpandController.forward(from: 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_previewScrollController.hasClients) return;
+      _previewScrollController.jumpTo(_cardScrollPixels);
+    });
+  }
+
+  void _onPreviewClose() {
+    if (_previewPhase != _PreviewPhase.ready) return;
+    setState(() => _previewPhase = _PreviewPhase.animatingOutUi);
+    _previewExitUiController.forward(from: 0);
+  }
+
+  Color _previewBannerBg(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return dark ? AppColors.accent : const Color(0xFF8A7560);
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────
 
   @override
+  void initState() {
+    super.initState();
+    _previewExpandController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    )..addStatusListener(_onPreviewExpandStatus);
+    _previewExitUiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    )..addStatusListener(_onPreviewExitUiStatus);
+    _previewExpandCurve = CurvedAnimation(
+      parent: _previewExpandController,
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
   void dispose() {
+    _previewExpandCurve.dispose();
+    _previewExpandController.dispose();
+    _previewExitUiController.dispose();
+    _previewScrollController.dispose();
     _sheetController.dispose();
     super.dispose();
   }
@@ -99,79 +229,290 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: Stack(
-        children: [
-          // QR zone — sits behind the draggable card
-          Positioned.fill(
-            child: Column(
-              children: [
-                SizedBox(height: topPad + 50),
-                Expanded(
-                  child: _QRZone(
-                    qrData:  'https://linkleaf.co/q/$_mockQrToken',
-                    slug:    _mockSlug,
-                    pos:     _pos,
-                    qrScale: _qrScale,
-                    onTap:   () => _snapTo(_Pos.peek),
+      body: AnimatedBuilder(
+        animation: Listenable.merge([
+          _previewExpandController,
+          _previewExitUiController,
+        ]),
+        builder: (context, _) {
+          final screenH  = mq.size.height;
+          final navH     = _kNavBarHeight + botPad;
+          final bodyH    = screenH - navH;
+          final expandT  = _previewExpandCurve.value;
+          final topStart = bodyH * (1 - _previewEntryExtent);
+          final hStart   = _previewEntryExtent * bodyH;
+          final cardTop  = lerpDouble(topStart, 0, expandT)!;
+          final cardH    = lerpDouble(hStart, screenH, expandT)!;
+          final radius   = lerpDouble(24, 0, expandT)!;
+          final chromeOp = _chromeOpacity();
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // QR zone — ends above bottom nav
+              Positioned(
+                top:    0,
+                left:   0,
+                right:  0,
+                bottom: navH,
+                child: Column(
+                  children: [
+                    SizedBox(height: topPad + 50),
+                    Expanded(
+                      child: _QRZone(
+                        qrData:  'https://linkleaf.co/q/$_mockQrToken',
+                        slug:    _mockSlug,
+                        pos:     _pos,
+                        qrScale: _qrScale,
+                        onTap:   () => _snapTo(_Pos.peek),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Top bar
+              Positioned(
+                top: topPad, left: 0, right: 0, height: 50,
+                child: IgnorePointer(
+                  ignoring: _previewCardActive,
+                  child: _TopBar(slug: _mockSlug, onEyeTap: _onEyeTap),
+                ),
+              ),
+
+              // Bottom nav (same widget as before; lives in stack for z-order)
+              Positioned(
+                left:   0,
+                right:  0,
+                bottom: 0,
+                height: navH,
+                child: IgnorePointer(
+                  ignoring: _previewCardActive,
+                  child: _BottomNav(
+                    currentIndex: _navIndex,
+                    bottomPad:    botPad,
+                    onTap:        (i) => setState(() => _navIndex = i),
+                  ),
+                ),
+              ),
+
+              // Draggable sheet — only while not using the preview morph layer
+              if (!_previewCardActive)
+                Positioned(
+                  top:    0,
+                  left:   0,
+                  right:  0,
+                  bottom: navH,
+                  child: Listener(
+                    onPointerDown: (_) {
+                      if (_sheetController.isAttached) {
+                        _dragStartExtent = _sheetController.size;
+                      }
+                    },
+                    onPointerUp: (_) {
+                      final start = _dragStartExtent;
+                      _dragStartExtent = null;
+                      if (start == null || !_sheetController.isAttached) return;
+                      if ((_sheetController.size - start).abs() > 0.015) {
+                        _snapTo(_nearestPos(_sheetController.size));
+                      }
+                    },
+                    child: NotificationListener<DraggableScrollableNotification>(
+                      onNotification: (n) {
+                        setState(() {
+                          _sheetExtent = n.extent;
+                          _pos         = _nearestPos(n.extent);
+                        });
+                        return false;
+                      },
+                      child: DraggableScrollableSheet(
+                        controller:       _sheetController,
+                        initialChildSize: _kMid,
+                        minChildSize:     _kPeek,
+                        maxChildSize:     _kTop,
+                        snap:             false,
+                        builder: (context, scrollController) {
+                          return NotificationListener<ScrollNotification>(
+                            onNotification: (n) {
+                              if (n is ScrollUpdateNotification &&
+                                  n.metrics.axis == Axis.vertical) {
+                                _cardScrollPixels = n.metrics.pixels;
+                              }
+                              return false;
+                            },
+                            child: _CardSheet(
+                              scrollController: scrollController,
+                              onHandleTap: () {
+                                if (_pos == _Pos.peek) _snapTo(_Pos.mid);
+                              },
+                              profilePreviewLinksLocked: false,
+                              saveContactEnabled:       false,
+                              onSaveContact:             null,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Profile preview morph + chrome
+              if (_previewCardActive)
+                Positioned(
+                  key:    ValueKey(_previewEntryPosition),
+                  top:    cardTop,
+                  left:   0,
+                  right:  0,
+                  height: cardH,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(radius),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (n) {
+                            if (n is ScrollUpdateNotification &&
+                                n.metrics.axis == Axis.vertical) {
+                              _cardScrollPixels = n.metrics.pixels;
+                            }
+                            return false;
+                          },
+                          child: _CardSheet(
+                            scrollController: _previewScrollController,
+                            onHandleTap: () {},
+                            profilePreviewLinksLocked: true,
+                            saveContactEnabled: _previewChromeInteractive,
+                            onSaveContact:      _openVcard,
+                            topCornerRadius:    radius,
+                          ),
+                        ),
+                        IgnorePointer(
+                          ignoring: chromeOp < 0.01,
+                          child: Opacity(
+                            opacity: chromeOp,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Positioned(
+                                  top:   0,
+                                  left:  0,
+                                  right: 0,
+                                  child: _PreviewBanner(
+                                    background: _previewBannerBg(context),
+                                    showSensitiveLine: _mockHasSensitiveData,
+                                    onBanner: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppColors.cardText
+                                        : Colors.white,
+                                    onBannerMuted:
+                                        Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? AppColors.cardMuted
+                                            : const Color(0xE6FFFFFF),
+                                  ),
+                                ),
+                                Positioned(
+                                  right:  mq.padding.right + 16,
+                                  bottom: mq.padding.bottom + 16,
+                                  child: _PreviewCloseButton(
+                                    onTap: _onPreviewClose,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Preview chrome ─────────────────────────────────────────────────────────
+
+class _PreviewBanner extends StatelessWidget {
+  final Color   background;
+  final bool    showSensitiveLine;
+  final Color   onBanner;
+  final Color   onBannerMuted;
+
+  const _PreviewBanner({
+    required this.background,
+    required this.showSensitiveLine,
+    required this.onBanner,
+    required this.onBannerMuted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: background,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Previewing your public profile',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize:    12,
+                  fontWeight:  FontWeight.w500,
+                  color:       onBanner,
+                  height:      1.2,
+                ),
+              ),
+              if (showSensitiveLine) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Includes contact info',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    color:    onBannerMuted,
+                    height:   1.2,
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-
-          // Top bar — floats above the sheet
-          Positioned(
-            top: topPad, left: 0, right: 0, height: 50,
-            child: _TopBar(slug: _mockSlug, onEyeTap: () {}),
-          ),
-
-          // Draggable card with manual spring snap on pointer release
-          Listener(
-            onPointerDown: (_) {
-              if (_sheetController.isAttached) {
-                _dragStartExtent = _sheetController.size;
-              }
-            },
-            onPointerUp: (_) {
-              final start = _dragStartExtent;
-              _dragStartExtent = null;
-              if (start == null || !_sheetController.isAttached) return;
-              // Only snap if the user actually dragged (not a tap on a button)
-              if ((_sheetController.size - start).abs() > 0.015) {
-                _snapTo(_nearestPos(_sheetController.size));
-              }
-            },
-            child: NotificationListener<DraggableScrollableNotification>(
-              onNotification: (n) {
-                setState(() {
-                  _sheetExtent = n.extent;
-                  _pos         = _nearestPos(n.extent);
-                });
-                return false;
-              },
-              child: DraggableScrollableSheet(
-                controller:       _sheetController,
-                initialChildSize: _kMid,
-                minChildSize:     _kPeek,
-                maxChildSize:     _kTop,
-                snap:             false, // we handle snapping with spring curve
-                builder: (context, scrollController) {
-                  return _CardSheet(
-                    scrollController: scrollController,
-                    onHandleTap: () {
-                      if (_pos == _Pos.peek) _snapTo(_Pos.mid);
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
-      bottomNavigationBar: _BottomNav(
-        currentIndex: _navIndex,
-        bottomPad:    botPad,
-        onTap:        (i) => setState(() => _navIndex = i),
+    );
+  }
+}
+
+class _PreviewCloseButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _PreviewCloseButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Ink(
+          width:  44,
+          height: 44,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color(0x4D000000),
+          ),
+          child: const Icon(Icons.close, color: Colors.white, size: 22),
+        ),
       ),
     );
   }
@@ -261,22 +602,29 @@ class _QRZone extends StatelessWidget {
 class _CardSheet extends StatelessWidget {
   final ScrollController scrollController;
   final VoidCallback     onHandleTap;
+  final bool             profilePreviewLinksLocked;
+  final bool             saveContactEnabled;
+  final Future<void> Function()? onSaveContact;
+  final double           topCornerRadius;
 
   const _CardSheet({
     required this.scrollController,
     required this.onHandleTap,
+    required this.profilePreviewLinksLocked,
+    required this.saveContactEnabled,
+    required this.onSaveContact,
+    this.topCornerRadius = 24,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.only(
-          topLeft:  Radius.circular(24),
-          topRight: Radius.circular(24),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(topCornerRadius),
         ),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color:      Color(0x521A1814),
             blurRadius: 32,
@@ -286,6 +634,7 @@ class _CardSheet extends StatelessWidget {
       ),
       // Always render full content — the sheet height clips naturally at peek.
       child: ListView(
+        key:        const PageStorageKey<String>('home_profile_card_list'),
         controller: scrollController,
         padding:    EdgeInsets.zero,
         physics:    const ClampingScrollPhysics(),
@@ -299,11 +648,18 @@ class _CardSheet extends StatelessWidget {
           ..._mockLinks.map(
             (l) => Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
-              child: _LinkPill(link: l),
+              child: _LinkPill(
+                link:                 l,
+                linkPreviewLocked:    profilePreviewLinksLocked,
+              ),
             ),
           ),
           const SizedBox(height: 4),
-          const _ContactChips(),
+          _ContactChips(
+            profilePreviewLinksLocked: profilePreviewLinksLocked,
+            saveContactEnabled:        saveContactEnabled,
+            onSaveContact:             onSaveContact,
+          ),
           const SizedBox(height: 12),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -424,7 +780,12 @@ class _AvatarSection extends StatelessWidget {
 
 class _LinkPill extends StatelessWidget {
   final Link link;
-  const _LinkPill({required this.link});
+  final bool linkPreviewLocked;
+
+  const _LinkPill({
+    required this.link,
+    this.linkPreviewLocked = false,
+  });
 
   Color get _iconBg {
     switch (link.title.toLowerCase()) {
@@ -438,7 +799,7 @@ class _LinkPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final content = Container(
       decoration: BoxDecoration(
         color:        AppColors.card,
         border:       Border.all(color: AppColors.cardBorder),
@@ -455,7 +816,7 @@ class _LinkPill extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {}, // tracking only — no navigation yet
+          onTap: linkPreviewLocked ? null : () {}, // tracking only — no navigation yet
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             child: Row(
@@ -498,25 +859,56 @@ class _LinkPill extends StatelessWidget {
         ),
       ),
     );
+    if (!linkPreviewLocked) return content;
+    return Opacity(opacity: 0.5, child: IgnorePointer(child: content));
   }
 }
 
 // ── Contact chips ─────────────────────────────────────────────────────────
 
 class _ContactChips extends StatelessWidget {
-  const _ContactChips();
+  final bool profilePreviewLinksLocked;
+  final bool saveContactEnabled;
+  final Future<void> Function()? onSaveContact;
+
+  const _ContactChips({
+    required this.profilePreviewLinksLocked,
+    required this.saveContactEnabled,
+    required this.onSaveContact,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final locked = profilePreviewLinksLocked;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        children: const [
-          Expanded(child: _ContactChip(label: 'Email',        icon: Icons.mail_outline)),
-          SizedBox(width: 8),
-          Expanded(child: _ContactChip(label: 'Phone',        icon: Icons.phone_outlined)),
-          SizedBox(width: 8),
-          Expanded(child: _ContactChip(label: 'Save contact', icon: Icons.person_add_outlined)),
+        children: [
+          Expanded(
+            child: _ContactChip(
+              label: 'Email',
+              icon:  Icons.mail_outline,
+              locked: locked,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ContactChip(
+              label: 'Phone',
+              icon:  Icons.phone_outlined,
+              locked: locked,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ContactChip(
+              label:         'Save contact',
+              icon:          Icons.person_add_outlined,
+              locked:        locked && !saveContactEnabled,
+              onTapEnabled: saveContactEnabled && onSaveContact != null,
+              onChipTap:    onSaveContact,
+            ),
+          ),
         ],
       ),
     );
@@ -526,11 +918,33 @@ class _ContactChips extends StatelessWidget {
 class _ContactChip extends StatelessWidget {
   final String   label;
   final IconData icon;
-  const _ContactChip({required this.label, required this.icon});
+  final bool     locked;
+  final bool     onTapEnabled;
+  final Future<void> Function()? onChipTap;
+
+  const _ContactChip({
+    required this.label,
+    required this.icon,
+    this.locked = false,
+    this.onTapEnabled = true,
+    this.onChipTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    VoidCallback? inkTap;
+    if (locked) {
+      inkTap = null;
+    } else if (onTapEnabled && onChipTap != null) {
+      final fn = onChipTap!;
+      inkTap = () {
+        fn();
+      };
+    } else {
+      inkTap = () {};
+    }
+
+    final child = Container(
       height: 38,
       decoration: BoxDecoration(
         color:        AppColors.cardSub,
@@ -541,7 +955,7 @@ class _ContactChip extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () {},
+          onTap: inkTap,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -560,6 +974,8 @@ class _ContactChip extends StatelessWidget {
         ),
       ),
     );
+    if (!locked) return child;
+    return Opacity(opacity: 0.5, child: IgnorePointer(child: child));
   }
 }
 
