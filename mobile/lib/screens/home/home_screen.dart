@@ -348,6 +348,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               profilePreviewLinksLocked: false,
                               saveContactEnabled:       false,
                               onSaveContact:             null,
+                              listTopInset:             0,
                             ),
                           );
                         },
@@ -386,6 +387,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             saveContactEnabled: _previewChromeInteractive,
                             onSaveContact:      _openVcard,
                             topCornerRadius:    radius,
+                            listTopInset: _PreviewBanner.listTopInset(
+                              topInset:           mq.padding.top,
+                              showSensitiveLine:  _mockHasSensitiveData,
+                            ),
                           ),
                         ),
                         IgnorePointer(
@@ -400,6 +405,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   left:  0,
                                   right: 0,
                                   child: _PreviewBanner(
+                                    topInset: mq.padding.top,
+                                    horizontalPadding: mq.padding,
                                     background: _previewBannerBg(context),
                                     showSensitiveLine: _mockHasSensitiveData,
                                     onBanner: Theme.of(context).brightness ==
@@ -411,13 +418,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                                 Brightness.dark
                                             ? AppColors.cardMuted
                                             : const Color(0xE6FFFFFF),
-                                  ),
-                                ),
-                                Positioned(
-                                  right:  mq.padding.right + 16,
-                                  bottom: mq.padding.bottom + 16,
-                                  child: _PreviewCloseButton(
-                                    onTap: _onPreviewClose,
+                                    onClose: _onPreviewClose,
                                   ),
                                 ),
                               ],
@@ -439,55 +440,105 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 // ── Preview chrome ─────────────────────────────────────────────────────────
 
 class _PreviewBanner extends StatelessWidget {
-  final Color   background;
-  final bool    showSensitiveLine;
-  final Color   onBanner;
-  final Color   onBannerMuted;
+  final double         topInset;
+  final EdgeInsets     horizontalPadding;
+  final Color          background;
+  final bool           showSensitiveLine;
+  final Color          onBanner;
+  final Color          onBannerMuted;
+  final VoidCallback   onClose;
 
   const _PreviewBanner({
+    required this.topInset,
+    required this.horizontalPadding,
     required this.background,
     required this.showSensitiveLine,
     required this.onBanner,
     required this.onBannerMuted,
+    required this.onClose,
   });
+
+  /// Matches this widget’s vertical layout (status strip + accent row) plus
+  /// a small gap so list content clears the banner.
+  static double listTopInset({
+    required double topInset,
+    required bool showSensitiveLine,
+    double gapBelowBanner = 12,
+  }) {
+    const padY = 20.0; // 10 + 10, must match accent `Padding`
+    const fs1 = 12.0;
+    const h1 = 1.2;
+    const fs2 = 10.0;
+    const h2 = 1.2;
+    const betweenLines = 4.0;
+    var textCol = fs1 * h1;
+    if (showSensitiveLine) {
+      textCol += betweenLines + fs2 * h2;
+    }
+    const btn = 44.0;
+    final rowH = textCol > btn ? textCol : btn;
+    return topInset + padY + rowH + gapBelowBanner;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: background,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Previewing your public profile',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize:    12,
-                  fontWeight:  FontWeight.w500,
-                  color:       onBanner,
-                  height:      1.2,
-                ),
-              ),
-              if (showSensitiveLine) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Includes contact info',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
-                    color:    onBannerMuted,
-                    height:   1.2,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (topInset > 0)
+          SizedBox(
+            height: topInset,
+            child: const ColoredBox(color: AppColors.card),
+          ),
+        ColoredBox(
+          color: background,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding.left + 16,
+              10,
+              horizontalPadding.right + 8,
+              10,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Previewing your public profile',
+                        textAlign: TextAlign.left,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize:    12,
+                          fontWeight:  FontWeight.w500,
+                          color:       onBanner,
+                          height:      1.2,
+                        ),
+                      ),
+                      if (showSensitiveLine) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Includes contact info',
+                          textAlign: TextAlign.left,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            color:    onBannerMuted,
+                            height:   1.2,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                _PreviewCloseButton(onTap: onClose),
               ],
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -606,6 +657,7 @@ class _CardSheet extends StatelessWidget {
   final bool             saveContactEnabled;
   final Future<void> Function()? onSaveContact;
   final double           topCornerRadius;
+  final double           listTopInset;
 
   const _CardSheet({
     required this.scrollController,
@@ -614,6 +666,7 @@ class _CardSheet extends StatelessWidget {
     required this.saveContactEnabled,
     required this.onSaveContact,
     this.topCornerRadius = 24,
+    this.listTopInset = 0,
   });
 
   @override
@@ -636,7 +689,7 @@ class _CardSheet extends StatelessWidget {
       child: ListView(
         key:        const PageStorageKey<String>('home_profile_card_list'),
         controller: scrollController,
-        padding:    EdgeInsets.zero,
+        padding:    EdgeInsets.only(top: listTopInset),
         physics:    const ClampingScrollPhysics(),
         children: [
           _DragHandle(onTap: onHandleTap),
@@ -860,7 +913,7 @@ class _LinkPill extends StatelessWidget {
       ),
     );
     if (!linkPreviewLocked) return content;
-    return Opacity(opacity: 0.5, child: IgnorePointer(child: content));
+    return IgnorePointer(child: content);
   }
 }
 
@@ -975,7 +1028,7 @@ class _ContactChip extends StatelessWidget {
       ),
     );
     if (!locked) return child;
-    return Opacity(opacity: 0.5, child: IgnorePointer(child: child));
+    return IgnorePointer(child: child);
   }
 }
 
