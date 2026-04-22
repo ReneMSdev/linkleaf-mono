@@ -345,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               onHandleTap: () {
                                 if (_pos == _Pos.peek) _snapTo(_Pos.mid);
                               },
-                              profilePreviewLinksLocked: false,
+                              profilePreviewLinksLocked: true,
                               saveContactEnabled:       false,
                               onSaveContact:             null,
                               listTopInset:             0,
