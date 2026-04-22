@@ -2,18 +2,17 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/colors.dart';
-import '../../models/link.dart';
+import '../../core/constants.dart';
+import 'widgets/bottom_nav.dart';
+import 'widgets/card_sheet.dart';
+import 'widgets/edit_fab.dart';
+import 'widgets/preview_banner.dart';
+import 'widgets/qr_zone.dart';
+import 'widgets/save_contact_fab.dart';
+import 'widgets/top_bar.dart';
 
-// ── Snap constants (fractions of sheet parent height) ─────────────────────
-
-const _kPeek = 0.065; // ~drag handle strip only
-const _kMid  = 0.6;   // default — card at ~60 %
 // _kTop is computed per-layout — see _HomeScreenState._kTop
-
-const _kNavBarHeight = 62.0;
 
 enum _Pos { peek, mid, top }
 
@@ -33,13 +32,6 @@ const _mockSlug = 'rene-v';
 /// Placeholder until profile payload includes this flag.
 const _mockHasSensitiveData = true;
 
-const _mockLinks = [
-  Link(id: '1', title: 'Portfolio', url: 'https://portfolio.example.com'),
-  Link(id: '2', title: 'GitHub', url: 'https://github.com'),
-  Link(id: '3', title: 'LinkedIn', url: 'https://linkedin.com'),
-  Link(id: '4', title: 'Dribbble', url: 'https://dribbble.com'),
-];
-
 // ── Screen ────────────────────────────────────────────────────────────────
 
 class HomeScreen extends StatefulWidget {
@@ -57,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ScrollController _previewScrollController = ScrollController();
 
   _Pos   _pos         = _Pos.mid;
-  double _sheetExtent = _kMid;
+  double _sheetExtent = kMid;
   int    _navIndex    = 0;
 
   // Computed in build() from real screen metrics; fallback keeps things safe
@@ -66,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   _PreviewPhase _previewPhase        = _PreviewPhase.idle;
   _Pos          _previewEntryPosition = _Pos.mid;
-  double        _previewEntryExtent   = _kMid;
+  double        _previewEntryExtent   = kMid;
   double _cardScrollPixels = 0;
 
   // Tracks extent at pointer-down to decide whether a release is a drag end.
@@ -76,8 +68,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // Smoothly scales 1.0 → 1.15 as the sheet moves from mid down to peek.
   double get _qrScale {
-    if (_sheetExtent >= _kMid) return 1.0;
-    final t = (_kMid - _sheetExtent) / (_kMid - _kPeek);
+    if (_sheetExtent >= kMid) return 1.0;
+    final t = (kMid - _sheetExtent) / (kMid - kPeek);
     return 1.0 + 0.15 * t.clamp(0.0, 1.0);
   }
 
@@ -85,8 +77,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   _Pos _nearestPos(double extent) {
     final d = {
-      _Pos.peek: (extent - _kPeek).abs(),
-      _Pos.mid: (extent - _kMid).abs(),
+      _Pos.peek: (extent - kPeek).abs(),
+      _Pos.mid: (extent - kMid).abs(),
       _Pos.top: (extent - _kTop).abs(),
     };
     return d.entries.reduce((a, b) => a.value < b.value ? a : b).key;
@@ -94,8 +86,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _snapTo(_Pos pos) {
     final size = switch (pos) {
-      _Pos.peek => _kPeek,
-      _Pos.mid => _kMid,
+      _Pos.peek => kPeek,
+      _Pos.mid => kMid,
       _Pos.top => _kTop,
     };
     setState(() {
@@ -225,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ]),
         builder: (context, _) {
           final screenH = mq.size.height;
-          final navH    = _kNavBarHeight + botPad;
+          final navH    = kNavBarHeight + botPad;
           final bodyH   = screenH - navH;
 
           // Card stops just below the top bar (status bar + 50px bar + 8px gap).
@@ -253,11 +245,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SizedBox(height: topPad + 50 + 16),
-                    _QRZone(
-                      qrData: 'https://linkleaf.co/q/$_mockQrToken',
-                      pos: _pos,
+                    QRZone(
+                      qrData:  'https://linkleaf.co/q/$_mockQrToken',
                       qrScale: _qrScale,
-                      onTap: () => _snapTo(_Pos.peek),
+                      onTap:   () => _snapTo(_Pos.peek),
                     ),
                   ],
                 ),
@@ -271,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 height: 50,
                 child: IgnorePointer(
                   ignoring: _previewCardActive,
-                  child: _TopBar(slug: _mockSlug, onEyeTap: _onEyeTap),
+                  child: TopBar(slug: _mockSlug, onEyeTap: _onEyeTap),
                 ),
               ),
 
@@ -283,10 +274,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 height: navH,
                 child: IgnorePointer(
                   ignoring: _previewCardActive,
-                  child: _BottomNav(
+                  child: BottomNav(
                     currentIndex: _navIndex,
-                    bottomPad: botPad,
-                    onTap: (i) => setState(() => _navIndex = i),
+                    bottomPad:    botPad,
+                    onTap:        (i) => setState(() => _navIndex = i),
                   ),
                 ),
               ),
@@ -323,8 +314,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           },
                           child: DraggableScrollableSheet(
                             controller: _sheetController,
-                            initialChildSize: _kMid,
-                            minChildSize: _kPeek,
+                            initialChildSize: kMid,
+                            minChildSize: kPeek,
                             maxChildSize: _kTop,
                             snap: false,
                             builder: (context, scrollController) {
@@ -336,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   }
                                   return false;
                                 },
-                                child: _CardSheet(
+                                child: CardSheet(
                                   scrollController: scrollController,
                                   onHandleTap: () {
                                     if (_pos == _Pos.peek) _snapTo(_Pos.mid);
@@ -356,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Positioned(
                   right:  16,
                   bottom: navH + 16,
-                  child: _EditFab(onTap: () {}),
+                  child: EditFab(onTap: () {}),
                 ),
 
               // Profile preview morph + chrome
@@ -382,12 +373,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             }
                             return false;
                           },
-                          child: _CardSheet(
+                          child: CardSheet(
                             scrollController: _previewScrollController,
                             onHandleTap: () {},
                             profilePreviewLinksLocked: true,
                             topCornerRadius: radius,
-                            listTopInset: _PreviewBanner.listTopInset(
+                            listTopInset: PreviewBanner.listTopInset(
                               topInset: mq.padding.top,
                               showSensitiveLine: _mockHasSensitiveData,
                             ),
@@ -404,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   top: 0,
                                   left: 0,
                                   right: 0,
-                                  child: _PreviewBanner(
+                                  child: PreviewBanner(
                                     topInset: mq.padding.top,
                                     horizontalPadding: mq.padding,
                                     background: _previewBannerBg(context),
@@ -426,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   left:   0,
                                   right:  0,
                                   bottom: mq.padding.bottom + 20,
-                                  child: const _SaveContactFab(),
+                                  child: const SaveContactFab(),
                                 ),
                               ],
                             ),
@@ -439,771 +430,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-// ── Preview chrome ─────────────────────────────────────────────────────────
-
-class _PreviewBanner extends StatelessWidget {
-  final double topInset;
-  final EdgeInsets horizontalPadding;
-  final Color background;
-  final bool showSensitiveLine;
-  final Color onBanner;
-  final Color onBannerMuted;
-  final VoidCallback onClose;
-
-  const _PreviewBanner({
-    required this.topInset,
-    required this.horizontalPadding,
-    required this.background,
-    required this.showSensitiveLine,
-    required this.onBanner,
-    required this.onBannerMuted,
-    required this.onClose,
-  });
-
-  /// Matches this widget’s vertical layout (status strip + accent row) plus
-  /// a small gap so list content clears the banner.
-  static double listTopInset({
-    required double topInset,
-    required bool showSensitiveLine,
-    double gapBelowBanner = 12,
-  }) {
-    const padY = 20.0; // 10 + 10, must match accent `Padding`
-    const fs1 = 12.0;
-    const h1 = 1.2;
-    const fs2 = 10.0;
-    const h2 = 1.2;
-    const betweenLines = 4.0;
-    var textCol = fs1 * h1;
-    if (showSensitiveLine) {
-      textCol += betweenLines + fs2 * h2;
-    }
-    const btn = 44.0;
-    final rowH = textCol > btn ? textCol : btn;
-    return topInset + padY + rowH + gapBelowBanner;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (topInset > 0)
-          SizedBox(
-            height: topInset,
-            child: const ColoredBox(color: AppColors.card),
-          ),
-        ColoredBox(
-          color: background,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding.left + 16,
-              10,
-              horizontalPadding.right + 8,
-              10,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Previewing your public profile',
-                        textAlign: TextAlign.left,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: onBanner,
-                          height: 1.2,
-                        ),
-                      ),
-                      if (showSensitiveLine) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Includes contact info',
-                          textAlign: TextAlign.left,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            color: onBannerMuted,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                _PreviewCloseButton(onTap: onClose),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PreviewCloseButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _PreviewCloseButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Ink(
-          width: 44,
-          height: 44,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: Color(0x4D000000),
-          ),
-          child: const Icon(Icons.close, color: Colors.white, size: 22),
-        ),
-      ),
-    );
-  }
-}
-
-// ── QR Zone ───────────────────────────────────────────────────────────────
-
-class _QRZone extends StatelessWidget {
-  final String qrData;
-  final _Pos pos;
-  final double qrScale;
-  final VoidCallback onTap;
-
-  const _QRZone({
-    required this.qrData,
-    required this.pos,
-    required this.qrScale,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedScale(
-          scale: qrScale,
-          duration: const Duration(milliseconds: 150),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(10),
-            child: QrImageView(
-              data: qrData,
-              version: QrVersions.auto,
-              size: 128,
-              backgroundColor: AppColors.card,
-              eyeStyle: const QrEyeStyle(
-                eyeShape: QrEyeShape.square,
-                color: AppColors.cardText,
-              ),
-              dataModuleStyle: const QrDataModuleStyle(
-                dataModuleShape: QrDataModuleShape.square,
-                color: AppColors.cardText,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Card sheet ────────────────────────────────────────────────────────────
-
-class _CardSheet extends StatelessWidget {
-  final ScrollController scrollController;
-  final VoidCallback onHandleTap;
-  final bool profilePreviewLinksLocked;
-  final double topCornerRadius;
-  final double listTopInset;
-
-  const _CardSheet({
-    required this.scrollController,
-    required this.onHandleTap,
-    required this.profilePreviewLinksLocked,
-    this.topCornerRadius = 24,
-    this.listTopInset = 0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(topCornerRadius),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x521A1814),
-            blurRadius: 32,
-            offset: Offset(0, -8),
-          ),
-        ],
-      ),
-      // Always render full content — the sheet height clips naturally at peek.
-      child: ListView(
-        key: const PageStorageKey<String>('home_profile_card_list'),
-        controller: scrollController,
-        padding: EdgeInsets.only(top: listTopInset),
-        physics: const ClampingScrollPhysics(),
-        children: [
-          _DragHandle(onTap: onHandleTap),
-          const _AvatarSection(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: AppColors.cardBorder,
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 7),
-            child: _ContactInfoPill(
-              icon:  Icons.phone_outlined,
-              value: '+1 (555) 000-0000',
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 7),
-            child: _ContactInfoPill(
-              icon:  Icons.mail_outline,
-              value: 'rene@example.com',
-            ),
-          ),
-          ..._mockLinks.map(
-            (l) => Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
-              child: _LinkPill(
-                link: l,
-                linkPreviewLocked: profilePreviewLinksLocked,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _PremiumLockedSection(label: 'Portfolio images'),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _PremiumLockedSection(label: 'Resume'),
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Drag handle ───────────────────────────────────────────────────────────
-
-class _DragHandle extends StatelessWidget {
-  final VoidCallback? onTap;
-  const _DragHandle({this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        height: 28,
-        child: Center(
-          child: Container(
-            width: 32,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.cardBorder,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Avatar section ────────────────────────────────────────────────────────
-
-class _AvatarSection extends StatelessWidget {
-  const _AvatarSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
-      child: Column(
-        children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0x55C9B99A), Color(0x22C9B99A)],
-              ),
-            ),
-            padding: const EdgeInsets.all(2),
-            child: Container(
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFD8CFC4),
-              ),
-              child: Center(
-                child: Text(
-                  'RV',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF8C7E6E),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'René Villanueva',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.cardText,
-              height: 1.1,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Product Designer · Salo Labs',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              color: AppColors.cardMuted,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '143 views',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11,
-              color: const Color(0x998C8070),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Link pill ─────────────────────────────────────────────────────────────
-
-class _LinkPill extends StatelessWidget {
-  final Link link;
-  final bool linkPreviewLocked;
-
-  const _LinkPill({required this.link, this.linkPreviewLocked = false});
-
-  Color get _iconBg {
-    switch (link.title.toLowerCase()) {
-      case 'portfolio':
-        return const Color(0xFFFF6B35);
-      case 'github':
-        return const Color(0xFF1A1814);
-      case 'linkedin':
-        return const Color(0xFF0A66C2);
-      case 'dribbble':
-        return const Color(0xFFEA4C89);
-      default:
-        return AppColors.muted;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.cardBorder),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F1A1814),
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: linkPreviewLocked
-              ? null
-              : () {}, // tracking only — no navigation yet
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            child: Row(
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: _iconBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: const Color(0xE5FFFFFF),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    link.title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.cardText,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: Color(0x4D1A1814),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    if (!linkPreviewLocked) return content;
-    return IgnorePointer(child: content);
-  }
-}
-
-// ── Contact info pills ────────────────────────────────────────────────────
-
-class _ContactInfoPill extends StatelessWidget {
-  final IconData icon;
-  final String   value;
-
-  const _ContactInfoPill({required this.icon, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color:        AppColors.card,
-        border:       Border.all(color: AppColors.cardBorder),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color:      Color(0x0F1A1814),
-            blurRadius: 3,
-            offset:     Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: AppColors.cardMuted),
-            const SizedBox(width: 10),
-            Text(
-              value,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize:   14,
-                fontWeight: FontWeight.w500,
-                color:      AppColors.cardText,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Save contact FAB (preview mode only) ─────────────────────────────────
-
-class _SaveContactFab extends StatelessWidget {
-  const _SaveContactFab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color:        AppColors.cardText,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
-            BoxShadow(
-              color:      Color(0x3A1A1814),
-              blurRadius: 16,
-              offset:     Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.person_add_outlined, color: AppColors.card, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Save Contact',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize:   15,
-                fontWeight: FontWeight.w600,
-                color:      AppColors.card,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Premium locked section ────────────────────────────────────────────────
-
-class _PremiumLockedSection extends StatelessWidget {
-  final String label;
-  const _PremiumLockedSection({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 68,
-      decoration: BoxDecoration(
-        color: AppColors.cardSub,
-        border: Border.all(color: AppColors.cardBorder),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.lock_outline, size: 15, color: AppColors.cardBorder),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              color: AppColors.cardBorder,
-            ),
-          ),
-          Text(
-            ' · Premium',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              color: const Color(0xFFD0C8BC),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Top bar ───────────────────────────────────────────────────────────────
-
-class _TopBar extends StatelessWidget {
-  final String slug;
-  final VoidCallback onEyeTap;
-  const _TopBar({required this.slug, required this.onEyeTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            const _HamburgerIcon(),
-            const Spacer(),
-            Text(
-              '@$slug',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.muted,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const Spacer(),
-            GestureDetector(
-              onTap: onEyeTap,
-              behavior: HitTestBehavior.opaque,
-              child: const SizedBox(
-                width: 36,
-                height: 36,
-                child: Center(
-                  child: Icon(
-                    Icons.remove_red_eye_outlined,
-                    color: AppColors.muted,
-                    size: 22,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HamburgerIcon extends StatelessWidget {
-  const _HamburgerIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 36,
-      height: 36,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(width: 22, height: 1.5, color: AppColors.text),
-          const SizedBox(height: 5),
-          Container(width: 16, height: 1.5, color: AppColors.muted),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Edit FAB ──────────────────────────────────────────────────────────────
-
-class _EditFab extends StatelessWidget {
-  final VoidCallback onTap;
-  const _EditFab({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width:  52,
-        height: 52,
-        decoration: BoxDecoration(
-          color:       AppColors.accent,
-          shape:       BoxShape.circle,
-          boxShadow: const [
-            BoxShadow(
-              color:      Color(0x3A1A1814),
-              blurRadius: 12,
-              offset:     Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.edit_outlined, color: Colors.white, size: 22),
-      ),
-    );
-  }
-}
-
-// ── Bottom nav ────────────────────────────────────────────────────────────
-
-class _NavTab {
-  final String label;
-  final IconData icon;
-  final IconData activeIcon;
-  const _NavTab(this.label, this.icon, this.activeIcon);
-}
-
-const _navTabs = [
-  _NavTab('Home', Icons.home_outlined, Icons.home),
-  _NavTab('Profiles', Icons.person_outline, Icons.person),
-  _NavTab('Themes', Icons.palette_outlined, Icons.palette),
-];
-
-class _BottomNav extends StatelessWidget {
-  final int currentIndex;
-  final double bottomPad;
-  final ValueChanged<int> onTap;
-
-  const _BottomNav({
-    required this.currentIndex,
-    required this.bottomPad,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 62 + bottomPad,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(_navTabs.length, (i) {
-          final tab = _navTabs[i];
-          final active = i == currentIndex;
-          final color = active ? AppColors.accent : AppColors.muted;
-          return GestureDetector(
-            onTap: () => onTap(i),
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              width: 72,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    active ? tab.activeIcon : tab.icon,
-                    size: 20,
-                    color: color,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    tab.label,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                      color: color,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
       ),
     );
   }
