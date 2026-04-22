@@ -1,6 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -10,8 +11,8 @@ import '../../models/link.dart';
 // ── Snap constants (fractions of sheet parent height) ─────────────────────
 
 const _kPeek = 0.065; // ~drag handle strip only
-const _kMid = 0.6; // default — card at ~55 %
-const _kTop = 0.93; // card covers QR zone
+const _kMid  = 0.6;   // default — card at ~60 %
+// _kTop is computed per-layout — see _HomeScreenState._kTop
 
 const _kNavBarHeight = 62.0;
 
@@ -64,13 +65,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final CurvedAnimation _previewExpandCurve;
   final ScrollController _previewScrollController = ScrollController();
 
-  _Pos _pos = _Pos.mid;
+  _Pos   _pos         = _Pos.mid;
   double _sheetExtent = _kMid;
-  int _navIndex = 0;
+  int    _navIndex    = 0;
 
-  _PreviewPhase _previewPhase = _PreviewPhase.idle;
-  _Pos _previewEntryPosition = _Pos.mid;
-  double _previewEntryExtent = _kMid;
+  // Computed in build() from real screen metrics; fallback keeps things safe
+  // before the first layout.
+  double _kTop = 0.92;
+
+  _PreviewPhase _previewPhase        = _PreviewPhase.idle;
+  _Pos          _previewEntryPosition = _Pos.mid;
+  double        _previewEntryExtent   = _kMid;
   double _cardScrollPixels = 0;
 
   // Tracks extent at pointer-down to decide whether a release is a drag end.
@@ -142,6 +147,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     if (status == AnimationStatus.dismissed &&
         _previewPhase == _PreviewPhase.animatingOutSheet) {
+      // Restore status bar icons to light for the dark app background.
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
       setState(() => _previewPhase = _PreviewPhase.idle);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_sheetController.isAttached) return;
@@ -171,6 +178,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _previewEntryExtent = _sheetController.isAttached
         ? _sheetController.size
         : _sheetExtent;
+    // Card background is light — switch status bar icons to dark.
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     setState(() => _previewPhase = _PreviewPhase.animatingIn);
     _previewExpandController.forward(from: 0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -236,8 +245,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ]),
         builder: (context, _) {
           final screenH = mq.size.height;
-          final navH = _kNavBarHeight + botPad;
-          final bodyH = screenH - navH;
+          final navH    = _kNavBarHeight + botPad;
+          final bodyH   = screenH - navH;
+
+          // Card stops just below the top bar (status bar + 50px bar + 8px gap).
+          final computedTop = ((bodyH - topPad - 50 - 8) / bodyH).clamp(0.5, 0.99);
+          if (computedTop != _kTop) _kTop = computedTop;
+
           final expandT = _previewExpandCurve.value;
           final topStart = bodyH * (1 - _previewEntryExtent);
           final hStart = _previewEntryExtent * bodyH;
