@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/colors.dart';
 import '../../models/link.dart';
 
@@ -31,16 +30,8 @@ enum _PreviewPhase {
 const _mockQrToken = 'abc123xyz';
 const _mockSlug = 'rene-v';
 
-/// Placeholder until GET /v1/profiles provides id.
-const _mockProfileId = 'mock-profile-id';
-
 /// Placeholder until profile payload includes this flag.
 const _mockHasSensitiveData = true;
-
-const _apiBase = String.fromEnvironment(
-  'LINKLEAF_API_BASE',
-  defaultValue: 'https://api.linkleaf.co',
-);
 
 const _mockLinks = [
   Link(id: '1', title: 'Portfolio', url: 'https://portfolio.example.com'),
@@ -121,10 +112,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   bool get _previewCardActive => _previewPhase != _PreviewPhase.idle;
 
-  bool get _previewChromeInteractive =>
-      _previewPhase == _PreviewPhase.ready ||
-      _previewPhase == _PreviewPhase.animatingOutUi;
-
   double _chromeOpacity() {
     final linearExpand = _previewExpandController.value;
     switch (_previewPhase) {
@@ -163,13 +150,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _previewPhase = _PreviewPhase.animatingOutSheet);
     _previewExitUiController.reset();
     _previewExpandController.reverse();
-  }
-
-  Future<void> _openVcard() async {
-    final uri = Uri.parse('$_apiBase/contacts/$_mockProfileId/vcard');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 
   void _onEyeTap() {
@@ -362,8 +342,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     if (_pos == _Pos.peek) _snapTo(_Pos.mid);
                                   },
                                   profilePreviewLinksLocked: true,
-                                  saveContactEnabled: false,
-                                  onSaveContact: null,
                                   listTopInset: 0,
                                 ),
                               );
@@ -408,8 +386,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             scrollController: _previewScrollController,
                             onHandleTap: () {},
                             profilePreviewLinksLocked: true,
-                            saveContactEnabled: _previewChromeInteractive,
-                            onSaveContact: _openVcard,
                             topCornerRadius: radius,
                             listTopInset: _PreviewBanner.listTopInset(
                               topInset: mq.padding.top,
@@ -445,6 +421,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         : const Color(0xE6FFFFFF),
                                     onClose: _onPreviewClose,
                                   ),
+                                ),
+                                Positioned(
+                                  left:   0,
+                                  right:  0,
+                                  bottom: mq.padding.bottom + 20,
+                                  child: const _SaveContactFab(),
                                 ),
                               ],
                             ),
@@ -650,8 +632,6 @@ class _CardSheet extends StatelessWidget {
   final ScrollController scrollController;
   final VoidCallback onHandleTap;
   final bool profilePreviewLinksLocked;
-  final bool saveContactEnabled;
-  final Future<void> Function()? onSaveContact;
   final double topCornerRadius;
   final double listTopInset;
 
@@ -659,8 +639,6 @@ class _CardSheet extends StatelessWidget {
     required this.scrollController,
     required this.onHandleTap,
     required this.profilePreviewLinksLocked,
-    required this.saveContactEnabled,
-    required this.onSaveContact,
     this.topCornerRadius = 24,
     this.listTopInset = 0,
   });
@@ -720,12 +698,6 @@ class _CardSheet extends StatelessWidget {
                 linkPreviewLocked: profilePreviewLinksLocked,
               ),
             ),
-          ),
-          const SizedBox(height: 4),
-          _ContactChips(
-            profilePreviewLinksLocked: profilePreviewLinksLocked,
-            saveContactEnabled: saveContactEnabled,
-            onSaveContact: onSaveContact,
           ),
           const SizedBox(height: 12),
           const Padding(
@@ -982,96 +954,45 @@ class _ContactInfoPill extends StatelessWidget {
   }
 }
 
-// ── Contact chips ─────────────────────────────────────────────────────────
+// ── Save contact FAB (preview mode only) ─────────────────────────────────
 
-class _ContactChips extends StatelessWidget {
-  final bool profilePreviewLinksLocked;
-  final bool saveContactEnabled;
-  final Future<void> Function()? onSaveContact;
-
-  const _ContactChips({
-    required this.profilePreviewLinksLocked,
-    required this.saveContactEnabled,
-    required this.onSaveContact,
-  });
+class _SaveContactFab extends StatelessWidget {
+  const _SaveContactFab();
 
   @override
   Widget build(BuildContext context) {
-    final locked = profilePreviewLinksLocked;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: _ContactChip(
-        label:        'Save contact',
-        icon:         Icons.person_add_outlined,
-        locked:       locked && !saveContactEnabled,
-        onTapEnabled: saveContactEnabled && onSaveContact != null,
-        onChipTap:    onSaveContact,
-      ),
-    );
-  }
-}
-
-class _ContactChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool locked;
-  final bool onTapEnabled;
-  final Future<void> Function()? onChipTap;
-
-  const _ContactChip({
-    required this.label,
-    required this.icon,
-    this.locked = false,
-    this.onTapEnabled = true,
-    this.onChipTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    VoidCallback? inkTap;
-    if (locked) {
-      inkTap = null;
-    } else if (onTapEnabled && onChipTap != null) {
-      final fn = onChipTap!;
-      inkTap = () {
-        fn();
-      };
-    } else {
-      inkTap = () {};
-    }
-
-    final child = Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: AppColors.cardSub,
-        border: Border.all(color: AppColors.cardBorder),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: inkTap,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 13, color: AppColors.cardMuted),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.cardMuted,
-                ),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color:        AppColors.cardText,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(
+              color:      Color(0x3A1A1814),
+              blurRadius: 16,
+              offset:     Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.person_add_outlined, color: AppColors.card, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Save Contact',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize:   15,
+                fontWeight: FontWeight.w600,
+                color:      AppColors.card,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
-    if (!locked) return child;
-    return IgnorePointer(child: child);
   }
 }
 
