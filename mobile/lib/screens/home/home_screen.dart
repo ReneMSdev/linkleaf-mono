@@ -698,6 +698,20 @@ class _CardSheet extends StatelessWidget {
               color: AppColors.cardBorder,
             ),
           ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 7),
+            child: _ContactInfoPill(
+              icon:  Icons.phone_outlined,
+              value: '+1 (555) 000-0000',
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 7),
+            child: _ContactInfoPill(
+              icon:  Icons.mail_outline,
+              value: 'rene@example.com',
+            ),
+          ),
           ..._mockLinks.map(
             (l) => Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
@@ -924,6 +938,50 @@ class _LinkPill extends StatelessWidget {
   }
 }
 
+// ── Contact info pills ────────────────────────────────────────────────────
+
+class _ContactInfoPill extends StatelessWidget {
+  final IconData icon;
+  final String   value;
+
+  const _ContactInfoPill({required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color:        AppColors.card,
+        border:       Border.all(color: AppColors.cardBorder),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color:      Color(0x0F1A1814),
+            blurRadius: 3,
+            offset:     Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.cardMuted),
+            const SizedBox(width: 10),
+            Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize:   14,
+                fontWeight: FontWeight.w500,
+                color:      AppColors.cardText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Contact chips ─────────────────────────────────────────────────────────
 
 class _ContactChips extends StatelessWidget {
@@ -942,34 +1000,12 @@ class _ContactChips extends StatelessWidget {
     final locked = profilePreviewLinksLocked;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ContactChip(
-              label: 'Email',
-              icon: Icons.mail_outline,
-              locked: locked,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ContactChip(
-              label: 'Phone',
-              icon: Icons.phone_outlined,
-              locked: locked,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ContactChip(
-              label: 'Save contact',
-              icon: Icons.person_add_outlined,
-              locked: locked && !saveContactEnabled,
-              onTapEnabled: saveContactEnabled && onSaveContact != null,
-              onChipTap: onSaveContact,
-            ),
-          ),
-        ],
+      child: _ContactChip(
+        label:        'Save contact',
+        icon:         Icons.person_add_outlined,
+        locked:       locked && !saveContactEnabled,
+        onTapEnabled: saveContactEnabled && onSaveContact != null,
+        onChipTap:    onSaveContact,
       ),
     );
   }
