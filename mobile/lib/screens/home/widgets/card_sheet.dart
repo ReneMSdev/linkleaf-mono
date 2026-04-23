@@ -6,24 +6,41 @@ import 'contact_info_pill.dart';
 import 'link_pill.dart';
 import 'premium_locked_section.dart';
 
-// Temporary — move to a profile data layer when the API is wired.
-const _mockLinks = [
+// TODO: replace with provider data
+const mockDisplayName      = 'René Villanueva';
+const mockInitials         = 'RV';
+const mockTitle            = 'Product Designer';
+const mockCompany          = 'Salo Labs';
+const mockViewCount        = 143;
+const mockPhone            = '+1 (555) 000-0000';
+const mockEmail            = 'rene@example.com';
+const mockHasSensitiveData = true;
+const mockLinks = [
   Link(id: '1', title: 'Portfolio', url: 'https://portfolio.example.com'),
-  Link(id: '2', title: 'GitHub', url: 'https://github.com'),
-  Link(id: '3', title: 'LinkedIn', url: 'https://linkedin.com'),
-  Link(id: '4', title: 'Dribbble', url: 'https://dribbble.com'),
+  Link(id: '2', title: 'GitHub',    url: 'https://github.com'),
+  Link(id: '3', title: 'LinkedIn',  url: 'https://linkedin.com'),
+  Link(id: '4', title: 'Dribbble',  url: 'https://dribbble.com'),
 ];
 
 // Draggable profile card sheet shown on the home screen and in preview mode.
 // Contains the avatar, contact info pills, links, and premium locked sections.
 class CardSheet extends StatelessWidget {
   final ScrollController scrollController;
-  final VoidCallback onHandleTap;
-  final bool profilePreviewLinksLocked;
-  final double topCornerRadius;
-  final double listTopInset;
-  final double listBottomInset;
-  final bool   showPremiumSections;
+  final VoidCallback     onHandleTap;
+  final bool             profilePreviewLinksLocked;
+  final double           topCornerRadius;
+  final double           listTopInset;
+  final double           listBottomInset;
+  final bool             showPremiumSections;
+  final String           displayName;
+  final String           initials;
+  final String           title;
+  final String           company;
+  final int              viewCount;
+  final List<Link>       links;
+  final bool             hasSensitiveData;
+  final String?          phone;
+  final String?          email;
 
   const CardSheet({
     required this.scrollController,
@@ -33,6 +50,15 @@ class CardSheet extends StatelessWidget {
     this.listTopInset        = 0,
     this.listBottomInset     = 0,
     this.showPremiumSections = true,
+    required this.displayName,
+    required this.initials,
+    required this.title,
+    required this.company,
+    required this.viewCount,
+    required this.links,
+    required this.hasSensitiveData,
+    this.phone,
+    this.email,
   });
 
   @override
@@ -59,34 +85,42 @@ class CardSheet extends StatelessWidget {
         physics: const ClampingScrollPhysics(),
         children: [
           _DragHandle(onTap: onHandleTap),
-          const AvatarSection(),
+          AvatarSection(
+            displayName: displayName,
+            initials:    initials,
+            title:       title,
+            company:     company,
+            viewCount:   viewCount,
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
             child: Divider(
-              height: 1,
+              height:    1,
               thickness: 1,
-              color: AppColors.cardBorder,
+              color:     AppColors.cardBorder,
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 7),
-            child: ContactInfoPill(
-              icon: Icons.phone_outlined,
-              value: '+1 (555) 000-0000',
+          if (phone != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
+              child: ContactInfoPill(
+                icon:  Icons.phone_outlined,
+                value: phone!,
+              ),
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 7),
-            child: ContactInfoPill(
-              icon: Icons.mail_outline,
-              value: 'rene@example.com',
+          if (email != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
+              child: ContactInfoPill(
+                icon:  Icons.mail_outline,
+                value: email!,
+              ),
             ),
-          ),
-          ..._mockLinks.map(
+          ...links.map(
             (l) => Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
               child: LinkPill(
-                link: l,
+                link:              l,
                 linkPreviewLocked: profilePreviewLinksLocked,
               ),
             ),
@@ -123,10 +157,10 @@ class _DragHandle extends StatelessWidget {
         height: 28,
         child: Center(
           child: Container(
-            width: 32,
+            width:  32,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.cardBorder,
+              color:        AppColors.cardBorder,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

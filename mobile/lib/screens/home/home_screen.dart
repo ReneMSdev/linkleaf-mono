@@ -24,13 +24,8 @@ enum _PreviewPhase {
   animatingOutSheet,
 }
 
-// ── Mock data — replaced when GET /v1/profiles is wired ──────────────────
-
-const _mockQrToken = 'abc123xyz';
-const _mockSlug = 'rene-v';
-
-/// Placeholder until profile payload includes this flag.
-const _mockHasSensitiveData = true;
+// Mock data lives in each widget file — see widgets/card_sheet.dart,
+// widgets/qr_zone.dart, and widgets/top_bar.dart for the TODO blocks.
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -246,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     SizedBox(height: topPad + 50 + 16),
                     QRZone(
-                      qrData:  'https://linkleaf.co/q/$_mockQrToken',
+                      qrData:  mockQrData,
                       qrScale: _qrScale,
                       onTap:   () => _snapTo(_Pos.peek),
                     ),
@@ -262,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 height: 50,
                 child: IgnorePointer(
                   ignoring: _previewCardActive,
-                  child: TopBar(slug: _mockSlug, onEyeTap: _onEyeTap),
+                  child: TopBar(slug: mockSlug, onEyeTap: _onEyeTap),
                 ),
               ),
 
@@ -333,7 +328,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     if (_pos == _Pos.peek) _snapTo(_Pos.mid);
                                   },
                                   profilePreviewLinksLocked: true,
-                                  listTopInset: 0,
+                                  listTopInset:      0,
+                                  displayName:       mockDisplayName,
+                                  initials:          mockInitials,
+                                  title:             mockTitle,
+                                  company:           mockCompany,
+                                  viewCount:         mockViewCount,
+                                  links:             mockLinks,
+                                  hasSensitiveData:  mockHasSensitiveData,
+                                  phone:             mockPhone,
+                                  email:             mockEmail,
                                 ),
                               );
                             },
@@ -380,12 +384,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             topCornerRadius: radius,
                             listTopInset: PreviewBanner.listTopInset(
                               topInset: mq.padding.top,
-                              showSensitiveLine: _mockHasSensitiveData,
+                              showSensitiveLine: mockHasSensitiveData,
                             ),
                             // Clear the Save Contact FAB (52px) + its 20px
                             // bottom offset + safe area + a 16px breathing gap.
                             listBottomInset:     mq.padding.bottom + 88,
                             showPremiumSections: false,
+                            displayName:         mockDisplayName,
+                            initials:            mockInitials,
+                            title:               mockTitle,
+                            company:             mockCompany,
+                            viewCount:           mockViewCount,
+                            links:               mockLinks,
+                            hasSensitiveData:    mockHasSensitiveData,
+                            phone:               mockPhone,
+                            email:               mockEmail,
                           ),
                         ),
                         IgnorePointer(
@@ -403,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     topInset: mq.padding.top,
                                     horizontalPadding: mq.padding,
                                     background: _previewBannerBg(context),
-                                    showSensitiveLine: _mockHasSensitiveData,
+                                    showSensitiveLine: mockHasSensitiveData,
                                     onBanner:
                                         Theme.of(context).brightness ==
                                             Brightness.dark

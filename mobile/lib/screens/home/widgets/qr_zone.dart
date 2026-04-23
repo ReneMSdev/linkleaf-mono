@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/colors.dart';
 
+// TODO: replace with provider data
+const mockQrData = 'https://linkleaf.co/q/abc123xyz';
+
 // QR code widget shown in the background of the home screen above the
 // profile card. Scales up slightly as the card is dragged down to peek.
 class QRZone extends StatelessWidget {

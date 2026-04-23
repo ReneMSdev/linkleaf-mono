@@ -1,6 +1,12 @@
+// ignore_for_file: unused_element
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/colors.dart';
+
+// TODO: replace with provider data
+// Example values — not used by the widget itself.
+const _mockPhone = '+1 (555) 000-0000';
+const _mockEmail = 'rene@example.com';
 
 // A full-width pill displaying a contact detail (phone or email)
 // with an icon and a mock value. Shown above the links on the profile card.

@@ -1,7 +1,12 @@
+// ignore_for_file: unused_element
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/colors.dart';
 import '../../../models/link.dart';
+
+// TODO: replace with provider data
+// Example link shape — not used by the widget itself.
+const _mockLink = Link(id: '1', title: 'Portfolio', url: 'https://portfolio.example.com');
 
 // A tappable pill representing a single profile link (title + chevron).
 // Renders as non-interactive when linkPreviewLocked is true.

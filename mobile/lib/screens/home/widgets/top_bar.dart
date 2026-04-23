@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/colors.dart';
 
+// TODO: replace with provider data
+const mockSlug = 'rene-v';
+
 // App bar for the home screen: hamburger menu on the left, slug handle
 // in the centre, and a preview (eye) icon on the right.
 // _HamburgerIcon is kept here as it is only used by TopBar.
