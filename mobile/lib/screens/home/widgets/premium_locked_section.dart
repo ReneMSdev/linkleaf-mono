@@ -20,20 +20,20 @@ class PremiumLockedSection extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.lock_outline, size: 15, color: AppColors.cardBorder),
+          const Icon(Icons.lock_outline, size: 15, color: AppColors.cardMuted),
           const SizedBox(width: 8),
           Text(
             label,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
-              color:    AppColors.cardBorder,
+              color:    AppColors.cardMuted,
             ),
           ),
           Text(
             ' · Premium',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
-              color:    const Color(0xFFD0C8BC),
+              color:    AppColors.accent,
             ),
           ),
         ],

@@ -382,6 +382,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               topInset: mq.padding.top,
                               showSensitiveLine: _mockHasSensitiveData,
                             ),
+                            // Clear the Save Contact FAB (52px) + its 20px
+                            // bottom offset + safe area + a 16px breathing gap.
+                            listBottomInset:     mq.padding.bottom + 88,
+                            showPremiumSections: false,
                           ),
                         ),
                         IgnorePointer(

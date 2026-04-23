@@ -22,13 +22,17 @@ class CardSheet extends StatelessWidget {
   final bool profilePreviewLinksLocked;
   final double topCornerRadius;
   final double listTopInset;
+  final double listBottomInset;
+  final bool   showPremiumSections;
 
   const CardSheet({
     required this.scrollController,
     required this.onHandleTap,
     required this.profilePreviewLinksLocked,
-    this.topCornerRadius = 24,
-    this.listTopInset = 0,
+    this.topCornerRadius     = 24,
+    this.listTopInset        = 0,
+    this.listBottomInset     = 0,
+    this.showPremiumSections = true,
   });
 
   @override
@@ -51,7 +55,7 @@ class CardSheet extends StatelessWidget {
       child: ListView(
         key: const PageStorageKey<String>('home_profile_card_list'),
         controller: scrollController,
-        padding: EdgeInsets.only(top: listTopInset),
+        padding: EdgeInsets.only(top: listTopInset, bottom: listBottomInset),
         physics: const ClampingScrollPhysics(),
         children: [
           _DragHandle(onTap: onHandleTap),
@@ -87,16 +91,18 @@ class CardSheet extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: PremiumLockedSection(label: 'Portfolio images'),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: PremiumLockedSection(label: 'Resume'),
-          ),
+          if (showPremiumSections) ...[
+            const SizedBox(height: 12),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: PremiumLockedSection(label: 'Portfolio images'),
+            ),
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: PremiumLockedSection(label: 'Resume'),
+            ),
+          ],
           const SizedBox(height: 32),
         ],
       ),
