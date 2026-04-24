@@ -35,6 +35,7 @@ class CardSheet extends StatelessWidget {
   final double           topCornerRadius;
   final double           listTopInset;
   final double           listBottomInset;
+  final bool             showDragHandle;
   // true  → premium: portfolio carousel, résumé widget
   // false → free:    branding bar, locked placeholders
   final bool             isPremium;
@@ -55,6 +56,7 @@ class CardSheet extends StatelessWidget {
     this.topCornerRadius = 24,
     this.listTopInset    = 0,
     this.listBottomInset = 0,
+    this.showDragHandle  = true,
     this.isPremium       = false,
     required this.displayName,
     required this.initials,
@@ -70,6 +72,7 @@ class CardSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.vertical(
@@ -89,7 +92,7 @@ class CardSheet extends StatelessWidget {
         padding: EdgeInsets.only(top: listTopInset, bottom: listBottomInset),
         physics: const ClampingScrollPhysics(),
         children: [
-          _DragHandle(onTap: onHandleTap),
+          if (showDragHandle) _DragHandle(onTap: onHandleTap),
           if (!isPremium) ...[
             const LinkLeafBranding(),
             const SizedBox(height: 12),

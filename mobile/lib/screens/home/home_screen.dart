@@ -396,6 +396,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             scrollController: _previewScrollController,
                             onHandleTap: () {},
                             profilePreviewLinksLocked: true,
+                            showDragHandle:  false,
                             topCornerRadius: radius,
                             listTopInset: PreviewBanner.listTopInset(
                               topInset: mq.padding.top,
