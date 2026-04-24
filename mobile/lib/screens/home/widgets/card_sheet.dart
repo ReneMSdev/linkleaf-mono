@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/colors.dart';
 import '../../../models/link.dart';
-import 'avatar_section.dart';
+import 'avatar_image.dart';
 import 'contact_info_pill.dart';
+import 'profile_info.dart';
 import 'link_pill.dart';
 import 'linkleaf_branding.dart';
 import 'portfolio_carousel.dart';
@@ -97,12 +98,19 @@ class CardSheet extends StatelessWidget {
             const LinkLeafBranding(),
             const SizedBox(height: 12),
           ],
-          AvatarSection(
-            displayName: displayName,
-            initials:    initials,
-            title:       title,
-            company:     company,
-            viewCount:   viewCount,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
+            child: Column(
+              children: [
+                AvatarImage(initials: initials),
+                ProfileInfo(
+                  displayName: displayName,
+                  title:       title,
+                  company:     company,
+                  viewCount:   viewCount,
+                ),
+              ],
+            ),
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
