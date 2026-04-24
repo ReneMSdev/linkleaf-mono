@@ -11,14 +11,27 @@ class PortfolioCarousel extends StatefulWidget {
 }
 
 class _PortfolioCarouselState extends State<PortfolioCarousel> {
+  late final PageController _pageController;
   int _active = 0;
 
-  void _prev() {
-    if (_active > 0) setState(() => _active--);
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
   }
 
-  void _next() {
-    if (_active < widget.imageCount - 1) setState(() => _active++);
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goTo(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -52,49 +65,31 @@ class _PortfolioCarouselState extends State<PortfolioCarousel> {
         ),
         AspectRatio(
           aspectRatio: 3 / 4,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(
-                color: AppColors.cardSub,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.image_outlined,
-                      size: 28,
-                      color: AppColors.cardMuted,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.imageCount,
+            onPageChanged: (i) => setState(() => _active = i),
+            itemBuilder: (context, i) => Container(
+              color: AppColors.cardSub,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.image_outlined,
+                    size: 28,
+                    color: AppColors.cardMuted,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Image ${i + 1}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: AppColors.cardText,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Image ${_active + 1}',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        color: AppColors.cardText,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Positioned.fill(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _prev,
-                        behavior: HitTestBehavior.translucent,
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _next,
-                        behavior: HitTestBehavior.translucent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
         Padding(
@@ -103,7 +98,7 @@ class _PortfolioCarouselState extends State<PortfolioCarousel> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(widget.imageCount, (i) {
               return GestureDetector(
-                onTap: () => setState(() => _active = i),
+                onTap: () => _goTo(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.symmetric(horizontal: 2.5),
