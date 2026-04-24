@@ -5,7 +5,9 @@ import 'avatar_section.dart';
 import 'contact_info_pill.dart';
 import 'link_pill.dart';
 import 'linkleaf_branding.dart';
+import 'portfolio_carousel.dart';
 import 'premium_locked_section.dart';
+import 'resume_widget.dart';
 
 // TODO: replace with provider data
 const mockDisplayName = 'René Villanueva';
@@ -136,6 +138,20 @@ class CardSheet extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: PremiumLockedSection(label: 'Resume'),
+            ),
+          ] else ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+            ),
+            const PortfolioCarousel(),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: ResumeWidget(),
             ),
           ],
           const SizedBox(height: 32),
