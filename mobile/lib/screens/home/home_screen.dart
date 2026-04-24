@@ -6,6 +6,7 @@ import '../../core/colors.dart';
 import '../../core/constants.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/card_sheet.dart';
+import 'widgets/dev_tier_fab.dart';
 import 'widgets/edit_fab.dart';
 import 'widgets/preview_banner.dart';
 import 'widgets/qr_zone.dart';
@@ -46,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   _Pos   _pos         = _Pos.mid;
   double _sheetExtent = kMid;
   int    _navIndex    = 0;
+  // Dev-only tier toggle — replaced by SubscriptionProvider.isPremium from API.
+  bool   _isPremium   = false;
 
   // Computed in build() from real screen metrics; fallback keeps things safe
   // before the first layout.
@@ -328,16 +331,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     if (_pos == _Pos.peek) _snapTo(_Pos.mid);
                                   },
                                   profilePreviewLinksLocked: true,
-                                  listTopInset:      0,
-                                  displayName:       mockDisplayName,
-                                  initials:          mockInitials,
-                                  title:             mockTitle,
-                                  company:           mockCompany,
-                                  viewCount:         mockViewCount,
-                                  links:             mockLinks,
-                                  hasSensitiveData:  mockHasSensitiveData,
-                                  phone:             mockPhone,
-                                  email:             mockEmail,
+                                  listTopInset:     0,
+                                  isPremium:        _isPremium,
+                                  displayName:      mockDisplayName,
+                                  initials:         mockInitials,
+                                  title:            mockTitle,
+                                  company:          mockCompany,
+                                  viewCount:        mockViewCount,
+                                  links:            mockLinks,
+                                  hasSensitiveData: mockHasSensitiveData,
+                                  phone:            mockPhone,
+                                  email:            mockEmail,
                                 ),
                               );
                             },
@@ -352,6 +356,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   right:  16,
                   bottom: navH + 16,
                   child: EditFab(onTap: () {}),
+                ),
+
+              // Dev-only tier toggle
+              if (!_previewCardActive)
+                Positioned(
+                  left:   16,
+                  bottom: navH + 16,
+                  child: DevTierFab(
+                    isPremium: _isPremium,
+                    onToggle:  () => setState(() => _isPremium = !_isPremium),
+                  ),
                 ),
 
               // Profile preview morph + chrome
@@ -388,17 +403,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                             // Clear the Save Contact FAB (52px) + its 20px
                             // bottom offset + safe area + a 16px breathing gap.
-                            listBottomInset:     mq.padding.bottom + 88,
-                            showPremiumSections: false,
-                            displayName:         mockDisplayName,
-                            initials:            mockInitials,
-                            title:               mockTitle,
-                            company:             mockCompany,
-                            viewCount:           mockViewCount,
-                            links:               mockLinks,
-                            hasSensitiveData:    mockHasSensitiveData,
-                            phone:               mockPhone,
-                            email:               mockEmail,
+                            listBottomInset:  mq.padding.bottom + 88,
+                            isPremium:        _isPremium,
+                            displayName:      mockDisplayName,
+                            initials:         mockInitials,
+                            title:            mockTitle,
+                            company:          mockCompany,
+                            viewCount:        mockViewCount,
+                            links:            mockLinks,
+                            hasSensitiveData: mockHasSensitiveData,
+                            phone:            mockPhone,
+                            email:            mockEmail,
                           ),
                         ),
                         IgnorePointer(
