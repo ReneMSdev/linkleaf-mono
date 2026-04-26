@@ -26,6 +26,14 @@ enum _PreviewPhase {
   animatingOutSheet,
 }
 
+enum _EditPhase {
+  idle,
+  animatingIn,
+  ready,
+  animatingOutUi,
+  animatingOutSheet,
+}
+
 // Mock data lives in each widget file — see widgets/card_sheet.dart,
 // widgets/qr_zone.dart, and widgets/top_bar.dart for the TODO blocks.
 
@@ -43,15 +51,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final AnimationController _previewExpandController;
   late final AnimationController _previewExitUiController;
   late final CurvedAnimation _previewExpandCurve;
+  late final AnimationController _editExpandController;
+  late final AnimationController _editExitUiController;
+  late final CurvedAnimation _editExpandCurve;
   final ScrollController _previewScrollController = ScrollController();
   final ScrollController _editScrollController   = ScrollController();
 
   _Pos   _pos         = _Pos.mid;
   double _sheetExtent = kMid;
   int    _navIndex    = 0;
-  bool   _editMode    = false;
   // Dev-only tier toggle — replaced by SubscriptionProvider.isPremium from API.
   bool   _isPremium   = false;
+
+  _EditPhase _editPhase       = _EditPhase.idle;
+  double     _editEntryExtent = kMid;
+
+  bool get _editMode => _editPhase != _EditPhase.idle;
 
   // Computed in build() from real screen metrics; fallback keeps things safe
   // before the first layout.
@@ -167,14 +182,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _previewExitUiController.forward(from: 0);
   }
 
+  double _editChromeOpacity() {
+    switch (_editPhase) {
+      case _EditPhase.idle:
+      case _EditPhase.animatingOutSheet:
+        return 0;
+      case _EditPhase.animatingIn:
+        return const Interval(0.6, 1.0).transform(_editExpandController.value);
+      case _EditPhase.ready:
+        return 1;
+      case _EditPhase.animatingOutUi:
+        return 1 - _editExitUiController.value;
+    }
+  }
+
+  void _onEditExpandStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed &&
+        _editPhase == _EditPhase.animatingIn) {
+      setState(() => _editPhase = _EditPhase.ready);
+    }
+    if (status == AnimationStatus.dismissed &&
+        _editPhase == _EditPhase.animatingOutSheet) {
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+      setState(() => _editPhase = _EditPhase.idle);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_sheetController.isAttached) return;
+        _sheetController.jumpTo(_editEntryExtent);
+      });
+    }
+  }
+
+  void _onEditExitUiStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    if (_editPhase != _EditPhase.animatingOutUi) return;
+    setState(() => _editPhase = _EditPhase.animatingOutSheet);
+    _editExitUiController.reset();
+    _editExpandController.reverse();
+  }
+
   void _enterEditMode() {
+    if (_editPhase != _EditPhase.idle) return;
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
-    setState(() => _editMode = true);
+    _editEntryExtent = _sheetController.isAttached
+        ? _sheetController.size
+        : _sheetExtent;
+    setState(() => _editPhase = _EditPhase.animatingIn);
+    _editExpandController.forward(from: 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_editScrollController.hasClients) return;
+      _editScrollController.jumpTo(_cardScrollPixels);
+    });
   }
 
   void _exitEditMode() {
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
-    setState(() => _editMode = false);
+    if (_editPhase != _EditPhase.ready) return;
+    setState(() => _editPhase = _EditPhase.animatingOutUi);
+    _editExitUiController.forward(from: 0);
   }
 
   Color _previewBannerBg(BuildContext context) {
@@ -199,6 +262,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       parent: _previewExpandController,
       curve: Curves.easeInOutCubic,
     );
+    _editExpandController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    )..addStatusListener(_onEditExpandStatus);
+    _editExitUiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    )..addStatusListener(_onEditExitUiStatus);
+    _editExpandCurve = CurvedAnimation(
+      parent: _editExpandController,
+      curve: Curves.easeInOutCubic,
+    );
   }
 
   @override
@@ -206,6 +281,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _previewExpandCurve.dispose();
     _previewExpandController.dispose();
     _previewExitUiController.dispose();
+    _editExpandCurve.dispose();
+    _editExpandController.dispose();
+    _editExitUiController.dispose();
     _previewScrollController.dispose();
     _editScrollController.dispose();
     _sheetController.dispose();
@@ -226,6 +304,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         animation: Listenable.merge([
           _previewExpandController,
           _previewExitUiController,
+          _editExpandController,
+          _editExitUiController,
         ]),
         builder: (context, _) {
           final screenH = mq.size.height;
@@ -243,6 +323,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final cardH = lerpDouble(hStart, screenH, expandT)!;
           final radius = lerpDouble(24, 0, expandT)!;
           final chromeOp = _chromeOpacity();
+
+          final editExpandT   = _editExpandCurve.value;
+          final editTopStart  = bodyH * (1 - _editEntryExtent);
+          final editHStart    = _editEntryExtent * bodyH;
+          final editCardTop   = lerpDouble(editTopStart, 0, editExpandT)!;
+          final editCardH     = lerpDouble(editHStart, screenH, editExpandT)!;
+          final editRadius    = lerpDouble(24, 0, editExpandT)!;
+          final editChromeOp  = _editChromeOpacity();
 
           return Stack(
             clipBehavior: Clip.none,
@@ -389,52 +477,72 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-              // Edit mode full-screen overlay
-              if (_editMode)
-                Positioned.fill(
-                  child: Stack(
-                    children: [
-                      CardSheet(
-                        scrollController:         _editScrollController,
-                        onHandleTap:              () {},
-                        profilePreviewLinksLocked: true,
-                        showDragHandle:            false,
-                        topCornerRadius:           0,
-                        listTopInset:              topPad + 50 + 8,
-                        isPremium:                 _isPremium,
-                        editMode:                  true,
-                        displayName:               mockDisplayName,
-                        initials:                  mockInitials,
-                        title:                     mockTitle,
-                        company:                   mockCompany,
-                        viewCount:                 mockViewCount,
-                        links:                     mockLinks,
-                        hasSensitiveData:          mockHasSensitiveData,
-                        phone:                     mockPhone,
-                        email:                     mockEmail,
-                      ),
-                      Positioned(
-                        top:   0,
-                        left:  0,
-                        right: 0,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Tint behind status bar to match the edit top bar
-                            Container(
-                              height: topPad,
-                              color:  AppColors.surface,
-                            ),
-                            EditTopBar(
-                              slug:      mockSlug,
-                              onContact: () {},
-                              onTheme:   () {},
-                              onDone:    _exitEditMode,
-                            ),
-                          ],
+              // Edit mode morph layer
+              if (_editPhase != _EditPhase.idle)
+                Positioned(
+                  top:    editCardTop,
+                  left:   0,
+                  right:  0,
+                  height: editCardH,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(editRadius),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CardSheet(
+                          scrollController:          _editScrollController,
+                          onHandleTap:               () {},
+                          profilePreviewLinksLocked: true,
+                          showDragHandle:            false,
+                          topCornerRadius:           editRadius,
+                          listTopInset:              topPad + 50 + 8,
+                          isPremium:                 _isPremium,
+                          editMode:                  true,
+                          displayName:               mockDisplayName,
+                          initials:                  mockInitials,
+                          title:                     mockTitle,
+                          company:                   mockCompany,
+                          viewCount:                 mockViewCount,
+                          links:                     mockLinks,
+                          hasSensitiveData:          mockHasSensitiveData,
+                          phone:                     mockPhone,
+                          email:                     mockEmail,
                         ),
-                      ),
-                    ],
+                        IgnorePointer(
+                          ignoring: editChromeOp < 0.01,
+                          child: Opacity(
+                            opacity: editChromeOp,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Positioned(
+                                  top:   0,
+                                  left:  0,
+                                  right: 0,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        height: topPad,
+                                        color:  AppColors.surface,
+                                      ),
+                                      EditTopBar(
+                                        slug:      mockSlug,
+                                        onContact: () {},
+                                        onTheme:   () {},
+                                        onDone:    _exitEditMode,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
