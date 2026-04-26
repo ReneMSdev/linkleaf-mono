@@ -430,33 +430,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             maxChildSize: _kTop,
                             snap: false,
                             builder: (context, scrollController) {
-                              return NotificationListener<ScrollNotification>(
-                                onNotification: (n) {
-                                  if (n is ScrollUpdateNotification &&
-                                      n.metrics.axis == Axis.vertical) {
-                                    _cardScrollPixels = n.metrics.pixels;
-                                  }
-                                  return false;
-                                },
-                                child: CardSheet(
-                                  scrollController: scrollController,
-                                  onHandleTap: () {
-                                    if (_pos == _Pos.qr) _snapTo(_Pos.mid);
-                                  },
-                                  profilePreviewLinksLocked: true,
-                                  listTopInset: 0,
-                                  isPremium: _isPremium,
-                                  editMode: _editMode,
-                                  displayName: mockDisplayName,
-                                  initials: mockInitials,
-                                  title: mockTitle,
-                                  company: mockCompany,
-                                  viewCount: mockViewCount,
-                                  links: mockLinks,
-                                  hasSensitiveData: mockHasSensitiveData,
-                                  phone: mockPhone,
-                                  email: mockEmail,
-                                ),
+                              return Stack(
+                                children: [
+                                  // Card content — interactive only when fully expanded
+                                  IgnorePointer(
+                                    ignoring: _pos != _Pos.top,
+                                    child: NotificationListener<ScrollNotification>(
+                                      onNotification: (n) {
+                                        if (n is ScrollUpdateNotification &&
+                                            n.metrics.axis == Axis.vertical) {
+                                          _cardScrollPixels = n.metrics.pixels;
+                                        }
+                                        return false;
+                                      },
+                                      child: CardSheet(
+                                        scrollController:          scrollController,
+                                        onHandleTap:               () {},
+                                        profilePreviewLinksLocked: true,
+                                        listTopInset:              0,
+                                        isPremium:                 _isPremium,
+                                        editMode:                  _editMode,
+                                        displayName:               mockDisplayName,
+                                        initials:                  mockInitials,
+                                        title:                     mockTitle,
+                                        company:                   mockCompany,
+                                        viewCount:                 mockViewCount,
+                                        links:                     mockLinks,
+                                        hasSensitiveData:          mockHasSensitiveData,
+                                        phone:                     mockPhone,
+                                        email:                     mockEmail,
+                                      ),
+                                    ),
+                                  ),
+                                  // Expansion overlay — captures all gestures when not at top
+                                  if (_pos != _Pos.top)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () => _snapTo(_Pos.top),
+                                        onVerticalDragUpdate: (details) {
+                                          if (!_sheetController.isAttached) return;
+                                          final delta = details.primaryDelta! / bodyH;
+                                          final newExtent = (_sheetController.size - delta)
+                                              .clamp(kQr, _kTop);
+                                          _sheetController.jumpTo(newExtent);
+                                          setState(() {
+                                            _sheetExtent = newExtent;
+                                            _pos         = _nearestPos(newExtent);
+                                          });
+                                        },
+                                        onVerticalDragEnd: (_) => _snapTo(
+                                          _nearestPos(_sheetController.isAttached
+                                              ? _sheetController.size
+                                              : _sheetExtent),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               );
                             },
                           ),
