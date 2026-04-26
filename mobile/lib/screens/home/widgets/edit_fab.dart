@@ -4,8 +4,13 @@ import '../../../core/colors.dart';
 // Floating circular edit button shown in the bottom-right corner
 // of the home screen when not in preview mode.
 class EditFab extends StatelessWidget {
+  final bool         editMode;
   final VoidCallback onTap;
-  const EditFab({required this.onTap});
+
+  const EditFab({
+    required this.editMode,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +20,7 @@ class EditFab extends StatelessWidget {
         width:  52,
         height: 52,
         decoration: BoxDecoration(
-          color:  AppColors.accent,
+          color:  editMode ? AppColors.cardText : AppColors.accent,
           shape:  BoxShape.circle,
           boxShadow: const [
             BoxShadow(
@@ -25,7 +30,11 @@ class EditFab extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.edit_outlined, color: Colors.white, size: 22),
+        child: Icon(
+          editMode ? Icons.check : Icons.edit_outlined,
+          color: Colors.white,
+          size:  22,
+        ),
       ),
     );
   }

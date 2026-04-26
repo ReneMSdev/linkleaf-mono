@@ -8,6 +8,7 @@ import 'widgets/bottom_nav.dart';
 import 'widgets/card_sheet.dart';
 import 'widgets/dev_tier_fab.dart';
 import 'widgets/edit_fab.dart';
+import 'widgets/edit_top_bar.dart';
 import 'widgets/preview_banner.dart';
 import 'widgets/qr_zone.dart';
 import 'widgets/save_contact_fab.dart';
@@ -47,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   _Pos   _pos         = _Pos.mid;
   double _sheetExtent = kMid;
   int    _navIndex    = 0;
+  bool   _editMode    = false;
   // Dev-only tier toggle — replaced by SubscriptionProvider.isPremium from API.
   bool   _isPremium   = false;
 
@@ -260,7 +262,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 height: 50,
                 child: IgnorePointer(
                   ignoring: _previewCardActive,
-                  child: TopBar(slug: mockSlug, onEyeTap: _onEyeTap),
+                  child: _editMode
+                      ? EditTopBar(
+                          slug:      mockSlug,
+                          onContact: () {},
+                          onTheme:   () {},
+                          onDone:    () => setState(() => _editMode = false),
+                        )
+                      : TopBar(slug: mockSlug, onEyeTap: _onEyeTap),
                 ),
               ),
 
@@ -355,7 +364,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Positioned(
                   right:  16,
                   bottom: navH + 16,
-                  child: EditFab(onTap: () {}),
+                  child: EditFab(
+                    editMode: _editMode,
+                    onTap:    () => setState(() => _editMode = !_editMode),
+                  ),
                 ),
 
               // Dev-only tier toggle
