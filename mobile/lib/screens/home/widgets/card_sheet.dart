@@ -116,12 +116,13 @@ class CardSheet extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
               child: Column(
                 children: [
-                  AvatarImage(initials: initials),
+                  AvatarImage(initials: initials, editMode: editMode),
                   ProfileInfo(
                     displayName: displayName,
                     title:       title,
                     company:     company,
                     viewCount:   viewCount,
+                    editMode:    editMode,
                   ),
                 ],
               ),
