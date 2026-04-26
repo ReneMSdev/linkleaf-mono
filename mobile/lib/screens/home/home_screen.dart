@@ -74,6 +74,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // Tracks extent at pointer-down to decide whether a release is a drag end.
   double? _dragStartExtent;
 
+  // True while the expansion overlay is actively handling a drag, so the
+  // overlay is never removed mid-gesture even if _pos flips to top.
+  bool _isDraggingCard = false;
+
   // ── QR scale ─────────────────────────────────────────────────────────
 
   // Smoothly scales 1.0 → 1.35 as the sheet moves from mid down to kQr.
@@ -424,7 +428,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 children: [
                                   // Card content — interactive only when fully expanded
                                   IgnorePointer(
-                                    ignoring: _pos != _Pos.top,
+                                    ignoring: _pos != _Pos.top || _isDraggingCard,
                                     child: NotificationListener<ScrollNotification>(
                                       onNotification: (n) {
                                         if (n is ScrollUpdateNotification &&
@@ -452,28 +456,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       ),
                                     ),
                                   ),
-                                  // Expansion overlay — captures all gestures when not at top
-                                  if (_pos != _Pos.top)
+                                  // Expansion overlay — captures all gestures when not at top.
+                                  // Kept alive for the full drag via _isDraggingCard so the
+                                  // overlay is never removed mid-gesture if _pos flips to top.
+                                  if (_pos != _Pos.top || _isDraggingCard)
                                     Positioned.fill(
                                       child: GestureDetector(
                                         behavior: HitTestBehavior.opaque,
                                         onTap: () => _snapTo(_Pos.top),
+                                        onVerticalDragStart: (_) =>
+                                            setState(() => _isDraggingCard = true),
                                         onVerticalDragUpdate: (details) {
                                           if (!_sheetController.isAttached) return;
                                           final delta = details.primaryDelta! / bodyH;
                                           final newExtent = (_sheetController.size - delta)
                                               .clamp(kQr, _kTop);
                                           _sheetController.jumpTo(newExtent);
-                                          setState(() {
-                                            _sheetExtent = newExtent;
-                                            _pos         = _nearestPos(newExtent);
-                                          });
+                                          setState(() => _sheetExtent = newExtent);
                                         },
-                                        onVerticalDragEnd: (_) => _snapTo(
-                                          _nearestPos(_sheetController.isAttached
+                                        onVerticalDragEnd: (_) {
+                                          setState(() => _isDraggingCard = false);
+                                          _snapTo(_nearestPos(_sheetController.isAttached
                                               ? _sheetController.size
-                                              : _sheetExtent),
-                                        ),
+                                              : _sheetExtent));
+                                        },
+                                        onVerticalDragCancel: () =>
+                                            setState(() => _isDraggingCard = false),
                                       ),
                                     ),
                                 ],
