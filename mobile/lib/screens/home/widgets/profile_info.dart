@@ -59,135 +59,57 @@ class _ProfileInfoState extends State<ProfileInfo> {
   void _activate(String field) => setState(() => _activeField = field);
   void _deactivate() => setState(() => _activeField = null);
 
-  // ── Field builders ────────────────────────────────────────────────────────
+  // ── Bio row (opens overlay rather than inline TextField) ──────────────────
 
-  Widget _tappable({
-    required String field,
-    required Widget child,
-  }) {
-    return GestureDetector(
-      onTap: () => _activate(field),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color:        AppColors.cardSub,
-          borderRadius: BorderRadius.circular(8),
-          border:       Border.all(color: AppColors.cardBorder),
-        ),
-        child: child,
-      ),
-    );
-  }
-
-  Widget _activeTextField({
-    required TextEditingController controller,
-    required TextStyle style,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller:  controller,
-      autofocus:   true,
-      maxLines:    maxLines,
-      style:       style,
-      decoration: InputDecoration(
-        filled:         true,
-        fillColor:      AppColors.surface,
-        isDense:        true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide:   const BorderSide(color: AppColors.cardText),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide:   const BorderSide(color: AppColors.cardText),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide:   const BorderSide(color: AppColors.cardText),
-        ),
-      ),
-      onTapOutside: (_) => _deactivate(),
-      onSubmitted:  (_) => _deactivate(),
-    );
-  }
-
-  Widget _nameField() {
-    final style = GoogleFonts.plusJakartaSans(
-      fontSize:   18,
-      fontWeight: FontWeight.w700,
-      color:      AppColors.cardText,
-      height:     1.1,
-    );
-    if (_activeField == 'name') {
-      return _activeTextField(controller: _nameCtrl, style: style);
-    }
-    return _tappable(
-      field: 'name',
-      child: Text(widget.displayName, style: style),
-    );
-  }
-
-  Widget _titleField() {
-    final style = GoogleFonts.plusJakartaSans(
-      fontSize: 13,
+  Widget _bioRow() {
+    final labelStyle = GoogleFonts.plusJakartaSans(
+      fontSize: 11,
       color:    AppColors.cardMuted,
     );
-    if (_activeField == 'title') {
-      return _activeTextField(controller: _titleCtrl, style: style);
-    }
-    return _tappable(
-      field: 'title',
-      child: Text(widget.title, style: style),
-    );
-  }
-
-  Widget _companyField() {
-    final style = GoogleFonts.plusJakartaSans(
+    final isEmpty = _bioCtrl.text.isEmpty;
+    final valueStyle = GoogleFonts.plusJakartaSans(
       fontSize: 13,
-      color:    AppColors.cardMuted,
+      color:    isEmpty ? AppColors.cardBorder : AppColors.cardMuted,
     );
-    if (_activeField == 'company') {
-      return _activeTextField(controller: _companyCtrl, style: style);
-    }
-    return _tappable(
-      field: 'company',
-      child: Text(widget.company, style: style),
-    );
-  }
 
-  Widget _bioField() {
-    final style = GoogleFonts.plusJakartaSans(
-      fontSize: 13,
-      color:    AppColors.cardMuted,
-    );
-    if (_activeField == 'bio') {
-      return _activeTextField(controller: _bioCtrl, style: style, maxLines: 3);
-    }
-    if (widget.bio == null) {
-      return GestureDetector(
-        onTap: () => _activate('bio'),
-        child: Container(
-          width:   double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color:        AppColors.cardSub,
-            borderRadius: BorderRadius.circular(8),
-            border:       Border.all(color: AppColors.cardBorder),
-          ),
-          child: Text(
-            'add a bio...',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              color:    AppColors.cardBorder,
+    return Container(
+      decoration: _pillDecoration(active: false),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _activate('bio'),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 11, 0, 11),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 56,
+                      child: Text('Bio', style: labelStyle),
+                    ),
+                    Expanded(
+                      child: Text(
+                        isEmpty ? 'add a bio...' : _bioCtrl.text,
+                        style:    valueStyle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      );
-    }
-    return _tappable(
-      field: 'bio',
-      child: Text(widget.bio!, style: style),
+          GestureDetector(
+            onTap: () => setState(() => _bioCtrl.clear()),
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(8, 11, 14, 11),
+              child: _RedClearButton(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -196,25 +118,67 @@ class _ProfileInfoState extends State<ProfileInfo> {
   @override
   Widget build(BuildContext context) {
     if (!widget.editMode) return _buildLive();
+    return _buildEdit();
+  }
 
-    return Column(
+  Widget _buildEdit() {
+    return Stack(
       children: [
-        const SizedBox(height: 8),
-        _nameField(),
-        const SizedBox(height: 4),
-        _titleField(),
-        const SizedBox(height: 4),
-        _companyField(),
-        const SizedBox(height: 4),
-        _bioField(),
-        const SizedBox(height: 4),
-        Text(
-          '${widget.viewCount} views',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 11,
-            color:    const Color(0x998C8070),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              _EditField(
+                label:      'Name',
+                controller: _nameCtrl,
+                active:     _activeField == 'name',
+                fontSize:   18,
+                fontWeight: FontWeight.w700,
+                onTap:      () => _activate('name'),
+                onClear:    () => setState(() => _nameCtrl.clear()),
+                onDone:     _deactivate,
+              ),
+              const SizedBox(height: 6),
+              _EditField(
+                label:      'Title',
+                controller: _titleCtrl,
+                active:     _activeField == 'title',
+                fontSize:   13,
+                onTap:      () => _activate('title'),
+                onClear:    () => setState(() => _titleCtrl.clear()),
+                onDone:     _deactivate,
+              ),
+              const SizedBox(height: 6),
+              _EditField(
+                label:      'Company',
+                controller: _companyCtrl,
+                active:     _activeField == 'company',
+                fontSize:   13,
+                onTap:      () => _activate('company'),
+                onClear:    () => setState(() => _companyCtrl.clear()),
+                onDone:     _deactivate,
+              ),
+              const SizedBox(height: 6),
+              _bioRow(),
+              const SizedBox(height: 8),
+              Text(
+                '${widget.viewCount} views',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  color:    const Color(0x998C8070),
+                ),
+              ),
+            ],
           ),
         ),
+        if (_activeField == 'bio')
+          Positioned.fill(
+            child: _BioOverlay(
+              controller: _bioCtrl,
+              onDone:     _deactivate,
+            ),
+          ),
       ],
     );
   }
@@ -259,6 +223,206 @@ class _ProfileInfoState extends State<ProfileInfo> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Shared helpers ─────────────────────────────────────────────────────────
+
+BoxDecoration _pillDecoration({required bool active}) {
+  return BoxDecoration(
+    color:        AppColors.card,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(
+      color: active ? AppColors.cardText : AppColors.cardBorder,
+    ),
+    boxShadow: const [
+      BoxShadow(
+        color:      Color(0x0F1A1814),
+        blurRadius: 3,
+        offset:     Offset(0, 1),
+      ),
+    ],
+  );
+}
+
+class _RedClearButton extends StatelessWidget {
+  const _RedClearButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width:  20,
+      height: 20,
+      decoration: const BoxDecoration(
+        color: Color(0xFFEF4444),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.close, size: 11, color: Colors.white),
+    );
+  }
+}
+
+// ── Edit field ─────────────────────────────────────────────────────────────
+
+class _EditField extends StatelessWidget {
+  final String                label;
+  final TextEditingController controller;
+  final bool                  active;
+  final double                fontSize;
+  final FontWeight            fontWeight;
+  final VoidCallback          onTap;
+  final VoidCallback          onClear;
+  final VoidCallback          onDone;
+
+  const _EditField({
+    required this.label,
+    required this.controller,
+    required this.active,
+    required this.onTap,
+    required this.onClear,
+    required this.onDone,
+    this.fontSize   = 14,
+    this.fontWeight = FontWeight.w400,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = GoogleFonts.plusJakartaSans(
+      fontSize: 11,
+      color:    AppColors.cardMuted,
+    );
+    final valueStyle = GoogleFonts.plusJakartaSans(
+      fontSize:   fontSize,
+      fontWeight: fontWeight,
+      color:      AppColors.cardText,
+    );
+
+    return Container(
+      decoration: _pillDecoration(active: active),
+      child: Row(
+        children: [
+          // Tappable area: label + value / TextField
+          Expanded(
+            child: GestureDetector(
+              onTap: active ? null : onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 11, 0, 11),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 56,
+                      child: Text(label, style: labelStyle),
+                    ),
+                    Expanded(
+                      child: active
+                          ? TextField(
+                              controller:  controller,
+                              autofocus:   true,
+                              maxLines:    1,
+                              style:       valueStyle,
+                              decoration: const InputDecoration(
+                                isDense:        true,
+                                contentPadding: EdgeInsets.zero,
+                                border:         InputBorder.none,
+                              ),
+                              onTapOutside: (_) => onDone(),
+                              onSubmitted:  (_) => onDone(),
+                            )
+                          : Text(controller.text, style: valueStyle),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Clear button
+          GestureDetector(
+            onTap:    onClear,
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(8, 11, 14, 11),
+              child: _RedClearButton(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Bio overlay ────────────────────────────────────────────────────────────
+
+class _BioOverlay extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback          onDone;
+
+  const _BioOverlay({required this.controller, required this.onDone});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.card,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  'Bio',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize:   15,
+                    fontWeight: FontWeight.w600,
+                    color:      AppColors.cardText,
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    onTap: onDone,
+                    child: Text(
+                      'Done',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize:   15,
+                        fontWeight: FontWeight.w600,
+                        color:      AppColors.cardText,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: controller,
+                autofocus:  true,
+                maxLines:   null,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color:    AppColors.cardMuted,
+                ),
+                decoration: InputDecoration(
+                  border:         InputBorder.none,
+                  isDense:        true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText:       'Add a bio...',
+                  hintStyle:      GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    color:    AppColors.cardBorder,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
