@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final AnimationController _previewExitUiController;
   late final CurvedAnimation _previewExpandCurve;
   final ScrollController _previewScrollController = ScrollController();
+  final ScrollController _editScrollController   = ScrollController();
 
   _Pos   _pos         = _Pos.mid;
   double _sheetExtent = kMid;
@@ -166,6 +167,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _previewExitUiController.forward(from: 0);
   }
 
+  void _enterEditMode() {
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
+    setState(() => _editMode = true);
+  }
+
+  void _exitEditMode() {
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+    setState(() => _editMode = false);
+  }
+
   Color _previewBannerBg(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return dark ? AppColors.accent : const Color(0xFF8A7560);
@@ -196,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _previewExpandController.dispose();
     _previewExitUiController.dispose();
     _previewScrollController.dispose();
+    _editScrollController.dispose();
     _sheetController.dispose();
     super.dispose();
   }
@@ -236,23 +248,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             clipBehavior: Clip.none,
             children: [
               // QR zone — ends above bottom nav
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: navH,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(height: topPad + 50 + 16),
-                    QRZone(
-                      qrData:  mockQrData,
-                      qrScale: _qrScale,
-                      onTap:   () => _snapTo(_Pos.peek),
-                    ),
-                  ],
+              if (!_editMode)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: navH,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(height: topPad + 50 + 16),
+                      QRZone(
+                        qrData:  mockQrData,
+                        qrScale: _qrScale,
+                        onTap:   () => _snapTo(_Pos.peek),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
               // Top bar
               Positioned(
@@ -261,36 +274,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 right: 0,
                 height: 50,
                 child: IgnorePointer(
-                  ignoring: _previewCardActive,
-                  child: _editMode
-                      ? EditTopBar(
-                          slug:      mockSlug,
-                          onContact: () {},
-                          onTheme:   () {},
-                          onDone:    () => setState(() => _editMode = false),
-                        )
-                      : TopBar(slug: mockSlug, onEyeTap: _onEyeTap),
+                  ignoring: _previewCardActive || _editMode,
+                  child: TopBar(slug: mockSlug, onEyeTap: _onEyeTap),
                 ),
               ),
 
               // Bottom nav (same widget as before; lives in stack for z-order)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: navH,
-                child: IgnorePointer(
-                  ignoring: _previewCardActive,
-                  child: BottomNav(
-                    currentIndex: _navIndex,
-                    bottomPad:    botPad,
-                    onTap:        (i) => setState(() => _navIndex = i),
+              if (!_editMode)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: navH,
+                  child: IgnorePointer(
+                    ignoring: _previewCardActive,
+                    child: BottomNav(
+                      currentIndex: _navIndex,
+                      bottomPad:    botPad,
+                      onTap:        (i) => setState(() => _navIndex = i),
+                    ),
                   ),
                 ),
-              ),
 
-              // Draggable sheet — only while not using the preview morph layer
-              if (!_previewCardActive)
+              // Draggable sheet — only while not using the preview morph layer or edit overlay
+              if (!_previewCardActive && !_editMode)
                 Positioned(
                   top: 0,
                   left: 0,
@@ -361,24 +368,73 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
 
               // Floating edit button
-              if (!_previewCardActive)
+              if (!_previewCardActive && !_editMode)
                 Positioned(
                   right:  16,
                   bottom: navH + 16,
                   child: EditFab(
-                    editMode: _editMode,
-                    onTap:    () => setState(() => _editMode = !_editMode),
+                    editMode: false,
+                    onTap:    _enterEditMode,
                   ),
                 ),
 
               // Dev-only tier toggle
-              if (!_previewCardActive)
+              if (!_previewCardActive && !_editMode)
                 Positioned(
                   left:   16,
                   bottom: navH + 16,
                   child: DevTierFab(
                     isPremium: _isPremium,
                     onToggle:  () => setState(() => _isPremium = !_isPremium),
+                  ),
+                ),
+
+              // Edit mode full-screen overlay
+              if (_editMode)
+                Positioned.fill(
+                  child: Stack(
+                    children: [
+                      CardSheet(
+                        scrollController:         _editScrollController,
+                        onHandleTap:              () {},
+                        profilePreviewLinksLocked: true,
+                        showDragHandle:            false,
+                        topCornerRadius:           0,
+                        listTopInset:              topPad + 50 + 8,
+                        isPremium:                 _isPremium,
+                        editMode:                  true,
+                        displayName:               mockDisplayName,
+                        initials:                  mockInitials,
+                        title:                     mockTitle,
+                        company:                   mockCompany,
+                        viewCount:                 mockViewCount,
+                        links:                     mockLinks,
+                        hasSensitiveData:          mockHasSensitiveData,
+                        phone:                     mockPhone,
+                        email:                     mockEmail,
+                      ),
+                      Positioned(
+                        top:   0,
+                        left:  0,
+                        right: 0,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Tint behind status bar to match the edit top bar
+                            Container(
+                              height: topPad,
+                              color:  AppColors.surface,
+                            ),
+                            EditTopBar(
+                              slug:      mockSlug,
+                              onContact: () {},
+                              onTheme:   () {},
+                              onDone:    _exitEditMode,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 

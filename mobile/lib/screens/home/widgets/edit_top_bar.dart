@@ -62,12 +62,20 @@ class EditTopBar extends StatelessWidget {
             GestureDetector(
               onTap:    onDone,
               behavior: HitTestBehavior.opaque,
-              child: Text(
-                'Done',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize:   15,
-                  fontWeight: FontWeight.w600,
-                  color:      AppColors.cardText,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color:        AppColors.card,
+                  border:       Border.all(color: AppColors.border, width: 1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Done',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize:   14,
+                    fontWeight: FontWeight.w600,
+                    color:      AppColors.cardText,
+                  ),
                 ),
               ),
             ),
