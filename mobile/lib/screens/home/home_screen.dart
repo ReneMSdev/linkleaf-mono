@@ -342,6 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   profilePreviewLinksLocked: true,
                                   listTopInset:     0,
                                   isPremium:        _isPremium,
+                                  editMode:         _editMode,
                                   displayName:      mockDisplayName,
                                   initials:         mockInitials,
                                   title:            mockTitle,

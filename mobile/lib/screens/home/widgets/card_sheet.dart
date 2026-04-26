@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/colors.dart';
 import '../../../models/link.dart';
 import 'avatar_image.dart';
 import 'contact_info_pill.dart';
-import 'profile_info.dart';
 import 'link_pill.dart';
 import 'linkleaf_branding.dart';
 import 'portfolio_carousel.dart';
 import 'premium_locked_section.dart';
+import 'profile_info.dart';
 import 'resume_widget.dart';
+import 'section_header.dart';
 
 // TODO: replace with provider data
-const mockDisplayName    = 'René Villanueva';
-const mockInitials       = 'RV';
-const mockTitle          = 'Product Designer';
-const mockCompany        = 'Salo Labs';
-const mockViewCount      = 143;
-const mockPhone          = '+1 (555) 000-0000';
-const mockEmail          = 'rene@example.com';
+const mockDisplayName      = 'René Villanueva';
+const mockInitials         = 'RV';
+const mockTitle            = 'Product Designer';
+const mockCompany          = 'Salo Labs';
+const mockViewCount        = 143;
+const mockPhone            = '+1 (555) 000-0000';
+const mockEmail            = 'rene@example.com';
 const mockHasSensitiveData = true;
 const mockLinks = [
   Link(id: '1', title: 'Portfolio', url: 'https://portfolio.example.com'),
@@ -40,6 +42,7 @@ class CardSheet extends StatelessWidget {
   // true  → premium: portfolio carousel, résumé widget
   // false → free:    branding bar, locked placeholders
   final bool             isPremium;
+  final bool             editMode;
   final String           displayName;
   final String           initials;
   final String           title;
@@ -59,6 +62,7 @@ class CardSheet extends StatelessWidget {
     this.listBottomInset = 0,
     this.showDragHandle  = true,
     this.isPremium       = false,
+    this.editMode        = false,
     required this.displayName,
     required this.initials,
     required this.title,
@@ -81,9 +85,9 @@ class CardSheet extends StatelessWidget {
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x521A1814),
+            color:      Color(0x521A1814),
             blurRadius: 32,
-            offset: Offset(0, -8),
+            offset:     Offset(0, -8),
           ),
         ],
       ),
@@ -98,75 +102,245 @@ class CardSheet extends StatelessWidget {
             const LinkLeafBranding(),
             const SizedBox(height: 12),
           ],
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
-            child: Column(
-              children: [
-                AvatarImage(initials: initials),
-                ProfileInfo(
-                  displayName: displayName,
-                  title:       title,
-                  company:     company,
-                  viewCount:   viewCount,
-                ),
-              ],
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
-            child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
-          ),
-          if (phone != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
-              child: ContactInfoPill(icon: Icons.phone_outlined, value: phone!),
-            ),
-          if (email != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
-              child: ContactInfoPill(icon: Icons.mail_outline, value: email!),
-            ),
-          ...links.map(
-            (l) => Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
-              child: LinkPill(
-                link:              l,
-                linkPreviewLocked: profilePreviewLinksLocked,
+
+          // Section: Identity — always first, not removable
+          SectionHeader(
+            label:          'Identity',
+            showLabel:      true,
+            editMode:       editMode,
+            isFixed:        true,
+            onDelete:       () {},
+            onToggleLabel:  () {},
+            onLabelChanged: (_) {},
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
+              child: Column(
+                children: [
+                  AvatarImage(initials: initials),
+                  ProfileInfo(
+                    displayName: displayName,
+                    title:       title,
+                    company:     company,
+                    viewCount:   viewCount,
+                  ),
+                ],
               ),
             ),
           ),
-          if (!isPremium) ...[
-            const SizedBox(height: 12),
+
+          // Separator: divider in view mode, add-section strip in edit mode
+          if (!editMode)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: PremiumLockedSection(label: 'Portfolio images'),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+            )
+          else
+            _AddSectionDivider(onTap: () => debugPrint('+ Add section tapped')),
+
+          // Section: Contact (only if contact data is present)
+          if (phone != null || email != null) ...[
+            SectionHeader(
+              label:          'Contact',
+              showLabel:      true,
+              editMode:       editMode,
+              onDelete:       () {},
+              onToggleLabel:  () {},
+              onLabelChanged: (_) {},
+              child: Column(
+                children: [
+                  if (phone != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
+                      child: ContactInfoPill(
+                        icon:  Icons.phone_outlined,
+                        value: phone!,
+                      ),
+                    ),
+                  if (email != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
+                      child: ContactInfoPill(
+                        icon:  Icons.mail_outline,
+                        value: email!,
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: PremiumLockedSection(label: 'Resume'),
+            if (editMode)
+              _AddSectionDivider(onTap: () => debugPrint('+ Add section tapped')),
+          ],
+
+          // Section: Links
+          SectionHeader(
+            label:          'Links',
+            showLabel:      true,
+            editMode:       editMode,
+            onDelete:       () {},
+            onToggleLabel:  () {},
+            onLabelChanged: (_) {},
+            child: Column(
+              children: links
+                  .map(
+                    (l) => Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
+                      child: LinkPill(
+                        link:              l,
+                        linkPreviewLocked: profilePreviewLinksLocked,
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+
+          // Sections: Portfolio + Resume
+          if (!isPremium) ...[
+            if (!editMode)
+              const SizedBox(height: 12)
+            else
+              _AddSectionDivider(onTap: () => debugPrint('+ Add section tapped')),
+            SectionHeader(
+              label:          'Portfolio',
+              showLabel:      true,
+              editMode:       editMode,
+              onDelete:       () {},
+              onToggleLabel:  () {},
+              onLabelChanged: (_) {},
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: PremiumLockedSection(label: 'Portfolio images'),
+              ),
+            ),
+            if (!editMode)
+              const SizedBox(height: 8)
+            else
+              _AddSectionDivider(onTap: () => debugPrint('+ Add section tapped')),
+            SectionHeader(
+              label:          'Resume',
+              showLabel:      true,
+              editMode:       editMode,
+              onDelete:       () {},
+              onToggleLabel:  () {},
+              onLabelChanged: (_) {},
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: PremiumLockedSection(label: 'Resume'),
+              ),
             ),
           ] else ...[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+            if (!editMode)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+              )
+            else
+              _AddSectionDivider(onTap: () => debugPrint('+ Add section tapped')),
+            SectionHeader(
+              label:          'Portfolio',
+              showLabel:      true,
+              editMode:       editMode,
+              onDelete:       () {},
+              onToggleLabel:  () {},
+              onLabelChanged: (_) {},
+              child: const PortfolioCarousel(),
             ),
-            const PortfolioCarousel(),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: ResumeWidget(),
+            if (!editMode)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 16),
+                child: Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+              )
+            else
+              _AddSectionDivider(onTap: () => debugPrint('+ Add section tapped')),
+            SectionHeader(
+              label:          'Resume',
+              showLabel:      true,
+              editMode:       editMode,
+              onDelete:       () {},
+              onToggleLabel:  () {},
+              onLabelChanged: (_) {},
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: ResumeWidget(),
+              ),
             ),
           ],
+
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 }
+
+// ── Add section divider ────────────────────────────────────────────────────
+
+class _AddSectionDivider extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AddSectionDivider({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap:    onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const Expanded(
+              child: CustomPaint(
+                painter: _DashedLinePainter(),
+                child:   SizedBox(height: 1),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                '+ Add section',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize:   11,
+                  fontWeight: FontWeight.w500,
+                  color:      AppColors.cardBorder,
+                ),
+              ),
+            ),
+            const Expanded(
+              child: CustomPaint(
+                painter: _DashedLinePainter(),
+                child:   SizedBox(height: 1),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  const _DashedLinePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color       = AppColors.cardBorder
+      ..strokeWidth = 1;
+    const dashWidth = 4.0;
+    const dashSpace = 4.0;
+    final y = size.height / 2;
+    double x = 0;
+    while (x < size.width) {
+      canvas.drawLine(Offset(x, y), Offset(x + dashWidth, y), paint);
+      x += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ── Drag handle ────────────────────────────────────────────────────────────
 
 class _DragHandle extends StatelessWidget {
   final VoidCallback? onTap;
@@ -175,7 +349,7 @@ class _DragHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap:    onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         height: 28,
