@@ -76,11 +76,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // ── QR scale ─────────────────────────────────────────────────────────
 
-  // Smoothly scales 1.0 → 1.20 as the sheet moves from mid down to kQr.
+  // Smoothly scales 1.0 → 1.35 as the sheet moves from mid down to kQr.
   double get _qrScale {
     if (_sheetExtent >= kMid) return 1.0;
     final t = (kMid - _sheetExtent) / (kMid - kQr);
-    return 1.0 + 0.20 * t.clamp(0.0, 1.0);
+    return 1.0 + 0.35 * t.clamp(0.0, 1.0);
   }
 
   // ── Snap helpers ──────────────────────────────────────────────────────
@@ -346,19 +346,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       QRZone(
                         qrData: mockQrData,
                         qrScale: _qrScale,
-                        onTap: () {
-                          setState(() {
-                            _pos = _Pos.qr;
-                            _sheetExtent = kQr;
-                          });
-                          if (_sheetController.isAttached) {
-                            _sheetController.animateTo(
-                              kQr,
-                              duration: const Duration(milliseconds: 420),
-                              curve: Curves.easeOutBack,
-                            );
-                          }
-                        },
+                        onTap: () => _snapTo(
+                          _pos == _Pos.qr ? _Pos.mid : _Pos.qr,
+                        ),
                       ),
                     ],
                   ),
