@@ -16,7 +16,7 @@ import 'widgets/top_bar.dart';
 
 // _kTop is computed per-layout — see _HomeScreenState._kTop
 
-enum _Pos { peek, mid, top }
+enum _Pos { qr, mid, top }
 
 enum _PreviewPhase {
   idle,
@@ -87,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   _Pos _nearestPos(double extent) {
     final d = {
-      _Pos.peek: (extent - kPeek).abs(),
+      _Pos.qr:  (extent - kQr).abs(),
       _Pos.mid: (extent - kMid).abs(),
       _Pos.top: (extent - _kTop).abs(),
     };
@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _snapTo(_Pos pos) {
     final size = switch (pos) {
-      _Pos.peek => kPeek,
+      _Pos.qr  => kQr,
       _Pos.mid => kMid,
       _Pos.top => _kTop,
     };
@@ -348,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         qrScale: _qrScale,
                         onTap: () {
                           setState(() {
-                            _pos = _Pos.mid;
+                            _pos = _Pos.qr;
                             _sheetExtent = kQr;
                           });
                           if (_sheetController.isAttached) {
@@ -426,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: DraggableScrollableSheet(
                             controller: _sheetController,
                             initialChildSize: kMid,
-                            minChildSize: kPeek,
+                            minChildSize: kQr,
                             maxChildSize: _kTop,
                             snap: false,
                             builder: (context, scrollController) {
@@ -441,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 child: CardSheet(
                                   scrollController: scrollController,
                                   onHandleTap: () {
-                                    if (_pos == _Pos.peek) _snapTo(_Pos.mid);
+                                    if (_pos == _Pos.qr) _snapTo(_Pos.mid);
                                   },
                                   profilePreviewLinksLocked: true,
                                   listTopInset: 0,
