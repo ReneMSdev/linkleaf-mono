@@ -26,13 +26,7 @@ enum _PreviewPhase {
   animatingOutSheet,
 }
 
-enum _EditPhase {
-  idle,
-  animatingIn,
-  ready,
-  animatingOutUi,
-  animatingOutSheet,
-}
+enum _EditPhase { idle, animatingIn, ready, animatingOutUi, animatingOutSheet }
 
 // Mock data lives in each widget file — see widgets/card_sheet.dart,
 // widgets/qr_zone.dart, and widgets/top_bar.dart for the TODO blocks.
@@ -55,16 +49,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final AnimationController _editExitUiController;
   late final CurvedAnimation _editExpandCurve;
   final ScrollController _previewScrollController = ScrollController();
-  final ScrollController _editScrollController   = ScrollController();
+  final ScrollController _editScrollController = ScrollController();
 
-  _Pos   _pos         = _Pos.mid;
+  _Pos _pos = _Pos.mid;
   double _sheetExtent = kMid;
-  int    _navIndex    = 0;
+  int _navIndex = 0;
   // Dev-only tier toggle — replaced by SubscriptionProvider.isPremium from API.
-  bool   _isPremium   = false;
+  bool _isPremium = false;
 
-  _EditPhase _editPhase       = _EditPhase.idle;
-  double     _editEntryExtent = kMid;
+  _EditPhase _editPhase = _EditPhase.idle;
+  double _editEntryExtent = kMid;
 
   bool get _editMode => _editPhase != _EditPhase.idle;
 
@@ -72,9 +66,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // before the first layout.
   double _kTop = 0.92;
 
-  _PreviewPhase _previewPhase        = _PreviewPhase.idle;
-  _Pos          _previewEntryPosition = _Pos.mid;
-  double        _previewEntryExtent   = kMid;
+  _PreviewPhase _previewPhase = _PreviewPhase.idle;
+  _Pos _previewEntryPosition = _Pos.mid;
+  double _previewEntryExtent = kMid;
   double _cardScrollPixels = 0;
 
   // Tracks extent at pointer-down to decide whether a release is a drag end.
@@ -82,11 +76,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // ── QR scale ─────────────────────────────────────────────────────────
 
-  // Smoothly scales 1.0 → 1.15 as the sheet moves from mid down to peek.
+  // Smoothly scales 1.0 → 1.20 as the sheet moves from mid down to kQr.
   double get _qrScale {
     if (_sheetExtent >= kMid) return 1.0;
-    final t = (kMid - _sheetExtent) / (kMid - kPeek);
-    return 1.0 + 0.15 * t.clamp(0.0, 1.0);
+    final t = (kMid - _sheetExtent) / (kMid - kQr);
+    return 1.0 + 0.20 * t.clamp(0.0, 1.0);
   }
 
   // ── Snap helpers ──────────────────────────────────────────────────────
@@ -309,11 +303,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ]),
         builder: (context, _) {
           final screenH = mq.size.height;
-          final navH    = kNavBarHeight + botPad;
-          final bodyH   = screenH - navH;
+          final navH = kNavBarHeight + botPad;
+          final bodyH = screenH - navH;
 
           // Card stops just below the top bar (status bar + 50px bar + 8px gap).
-          final computedTop = ((bodyH - topPad - 50 - 8) / bodyH).clamp(0.5, 0.99);
+          final computedTop = ((bodyH - topPad - 50 - 8) / bodyH).clamp(
+            0.5,
+            0.99,
+          );
           if (computedTop != _kTop) _kTop = computedTop;
 
           final expandT = _previewExpandCurve.value;
@@ -324,18 +321,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final radius = lerpDouble(24, 0, expandT)!;
           final chromeOp = _chromeOpacity();
 
-          final editExpandT   = _editExpandCurve.value;
-          final editTopStart  = bodyH * (1 - _editEntryExtent);
-          final editHStart    = _editEntryExtent * bodyH;
-          final editCardTop   = lerpDouble(editTopStart, 0, editExpandT)!;
-          final editCardH     = lerpDouble(editHStart, screenH, editExpandT)!;
-          final editRadius    = lerpDouble(24, 0, editExpandT)!;
-          final editChromeOp  = _editChromeOpacity();
+          final editExpandT = _editExpandCurve.value;
+          final editTopStart = bodyH * (1 - _editEntryExtent);
+          final editHStart = _editEntryExtent * bodyH;
+          final editCardTop = lerpDouble(editTopStart, 0, editExpandT)!;
+          final editCardH = lerpDouble(editHStart, screenH, editExpandT)!;
+          final editRadius = lerpDouble(24, 0, editExpandT)!;
+          final editChromeOp = _editChromeOpacity();
 
           return Stack(
             clipBehavior: Clip.none,
             children: [
-              // QR zone — ends above bottom nav
+              // QR zone — fixed below the top bar, card nudges down on tap
               if (!_editMode)
                 Positioned(
                   top: 0,
@@ -345,11 +342,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(height: topPad + 50 + 16),
+                      SizedBox(height: topPad + 50 + 8),
                       QRZone(
-                        qrData:  mockQrData,
+                        qrData: mockQrData,
                         qrScale: _qrScale,
-                        onTap:   () => _snapTo(_Pos.peek),
+                        onTap: () {
+                          setState(() {
+                            _pos = _Pos.mid;
+                            _sheetExtent = kQr;
+                          });
+                          if (_sheetController.isAttached) {
+                            _sheetController.animateTo(
+                              kQr,
+                              duration: const Duration(milliseconds: 420),
+                              curve: Curves.easeOutBack,
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -378,8 +387,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ignoring: _previewCardActive,
                     child: BottomNav(
                       currentIndex: _navIndex,
-                      bottomPad:    botPad,
-                      onTap:        (i) => setState(() => _navIndex = i),
+                      bottomPad: botPad,
+                      onTap: (i) => setState(() => _navIndex = i),
                     ),
                   ),
                 ),
@@ -435,18 +444,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     if (_pos == _Pos.peek) _snapTo(_Pos.mid);
                                   },
                                   profilePreviewLinksLocked: true,
-                                  listTopInset:     0,
-                                  isPremium:        _isPremium,
-                                  editMode:         _editMode,
-                                  displayName:      mockDisplayName,
-                                  initials:         mockInitials,
-                                  title:            mockTitle,
-                                  company:          mockCompany,
-                                  viewCount:        mockViewCount,
-                                  links:            mockLinks,
+                                  listTopInset: 0,
+                                  isPremium: _isPremium,
+                                  editMode: _editMode,
+                                  displayName: mockDisplayName,
+                                  initials: mockInitials,
+                                  title: mockTitle,
+                                  company: mockCompany,
+                                  viewCount: mockViewCount,
+                                  links: mockLinks,
                                   hasSensitiveData: mockHasSensitiveData,
-                                  phone:            mockPhone,
-                                  email:            mockEmail,
+                                  phone: mockPhone,
+                                  email: mockEmail,
                                 ),
                               );
                             },
@@ -458,31 +467,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // Floating edit button
               if (!_previewCardActive && !_editMode)
                 Positioned(
-                  right:  16,
+                  right: 16,
                   bottom: navH + 16,
-                  child: EditFab(
-                    editMode: false,
-                    onTap:    _enterEditMode,
-                  ),
+                  child: EditFab(editMode: false, onTap: _enterEditMode),
                 ),
 
               // Dev-only tier toggle
               if (!_previewCardActive && !_editMode)
                 Positioned(
-                  left:   16,
+                  left: 16,
                   bottom: navH + 16,
                   child: DevTierFab(
                     isPremium: _isPremium,
-                    onToggle:  () => setState(() => _isPremium = !_isPremium),
+                    onToggle: () => setState(() => _isPremium = !_isPremium),
                   ),
                 ),
 
               // Edit mode morph layer
               if (_editPhase != _EditPhase.idle)
                 Positioned(
-                  top:    editCardTop,
-                  left:   0,
-                  right:  0,
+                  top: editCardTop,
+                  left: 0,
+                  right: 0,
                   height: editCardH,
                   child: ClipRRect(
                     borderRadius: BorderRadius.vertical(
@@ -492,23 +498,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       fit: StackFit.expand,
                       children: [
                         CardSheet(
-                          scrollController:          _editScrollController,
-                          onHandleTap:               () {},
+                          scrollController: _editScrollController,
+                          onHandleTap: () {},
                           profilePreviewLinksLocked: true,
-                          showDragHandle:            false,
-                          topCornerRadius:           editRadius,
-                          listTopInset:              topPad + 50 + 8,
-                          isPremium:                 _isPremium,
-                          editMode:                  true,
-                          displayName:               mockDisplayName,
-                          initials:                  mockInitials,
-                          title:                     mockTitle,
-                          company:                   mockCompany,
-                          viewCount:                 mockViewCount,
-                          links:                     mockLinks,
-                          hasSensitiveData:          mockHasSensitiveData,
-                          phone:                     mockPhone,
-                          email:                     mockEmail,
+                          showDragHandle: false,
+                          topCornerRadius: editRadius,
+                          listTopInset: topPad + 50 + 8,
+                          isPremium: _isPremium,
+                          editMode: true,
+                          displayName: mockDisplayName,
+                          initials: mockInitials,
+                          title: mockTitle,
+                          company: mockCompany,
+                          viewCount: mockViewCount,
+                          links: mockLinks,
+                          hasSensitiveData: mockHasSensitiveData,
+                          phone: mockPhone,
+                          email: mockEmail,
                         ),
                         IgnorePointer(
                           ignoring: editChromeOp < 0.01,
@@ -518,21 +524,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               fit: StackFit.expand,
                               children: [
                                 Positioned(
-                                  top:   0,
-                                  left:  0,
+                                  top: 0,
+                                  left: 0,
                                   right: 0,
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Container(
                                         height: topPad,
-                                        color:  AppColors.surface,
+                                        color: AppColors.surface,
                                       ),
                                       EditTopBar(
-                                        slug:      mockSlug,
+                                        slug: mockSlug,
                                         onContact: () {},
-                                        onTheme:   () {},
-                                        onDone:    _exitEditMode,
+                                        onTheme: () {},
+                                        onDone: _exitEditMode,
                                       ),
                                     ],
                                   ),
@@ -573,7 +579,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             scrollController: _previewScrollController,
                             onHandleTap: () {},
                             profilePreviewLinksLocked: true,
-                            showDragHandle:  false,
+                            showDragHandle: false,
                             topCornerRadius: radius,
                             listTopInset: PreviewBanner.listTopInset(
                               topInset: mq.padding.top,
@@ -581,17 +587,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                             // Clear the Save Contact FAB (52px) + its 20px
                             // bottom offset + safe area + a 16px breathing gap.
-                            listBottomInset:  mq.padding.bottom + 88,
-                            isPremium:        _isPremium,
-                            displayName:      mockDisplayName,
-                            initials:         mockInitials,
-                            title:            mockTitle,
-                            company:          mockCompany,
-                            viewCount:        mockViewCount,
-                            links:            mockLinks,
+                            listBottomInset: mq.padding.bottom + 88,
+                            isPremium: _isPremium,
+                            displayName: mockDisplayName,
+                            initials: mockInitials,
+                            title: mockTitle,
+                            company: mockCompany,
+                            viewCount: mockViewCount,
+                            links: mockLinks,
                             hasSensitiveData: mockHasSensitiveData,
-                            phone:            mockPhone,
-                            email:            mockEmail,
+                            phone: mockPhone,
+                            email: mockEmail,
                           ),
                         ),
                         IgnorePointer(
@@ -624,8 +630,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ),
                                 ),
                                 Positioned(
-                                  left:   0,
-                                  right:  0,
+                                  left: 0,
+                                  right: 0,
                                   bottom: mq.padding.bottom + 20,
                                   child: const SaveContactFab(),
                                 ),

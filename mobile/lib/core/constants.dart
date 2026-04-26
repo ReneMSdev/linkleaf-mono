@@ -5,6 +5,8 @@ class AppConstants {
 
 // ── Sheet snap constants (fractions of sheet parent height) ───────────────
 
-const kPeek        = 0.065;
-const kMid         = 0.6;
+const kPeek = 0.065;
+const kQr =
+    0.62; // sheet extent when QR is tapped — small slide to give QR room
+const kMid = 0.66;
 const kNavBarHeight = 62.0;
