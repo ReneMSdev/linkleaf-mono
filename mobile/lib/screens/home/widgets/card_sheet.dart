@@ -17,7 +17,6 @@ const mockDisplayName      = 'René Villanueva';
 const mockInitials         = 'RV';
 const mockTitle            = 'Product Designer';
 const mockCompany          = 'Salo Labs';
-const mockViewCount        = 143;
 const mockPhone            = '+1 (555) 000-0000';
 const mockEmail            = 'rene@example.com';
 const mockHasSensitiveData = true;
@@ -47,7 +46,6 @@ class CardSheet extends StatelessWidget {
   final String           initials;
   final String           title;
   final String           company;
-  final int              viewCount;
   final List<Link>       links;
   final bool             hasSensitiveData;
   final String?          phone;
@@ -67,7 +65,6 @@ class CardSheet extends StatelessWidget {
     required this.initials,
     required this.title,
     required this.company,
-    required this.viewCount,
     required this.links,
     required this.hasSensitiveData,
     this.phone,
@@ -121,7 +118,6 @@ class CardSheet extends StatelessWidget {
                     displayName: displayName,
                     title:       title,
                     company:     company,
-                    viewCount:   viewCount,
                     editMode:    editMode,
                   ),
                 ],
