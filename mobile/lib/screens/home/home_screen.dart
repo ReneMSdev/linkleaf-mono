@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (!_sheetController.isAttached) return;
     _sheetController.animateTo(
       size,
-      duration: const Duration(milliseconds: 420),
+      duration: const Duration(milliseconds: 360),
       curve: Curves.easeOut, // spring overshoot
     );
   }
