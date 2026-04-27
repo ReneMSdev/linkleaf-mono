@@ -25,7 +25,7 @@ class QRZone extends StatelessWidget {
         onTap: onTap,
         child: AnimatedScale(
           scale: qrScale,
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 120),
           alignment: Alignment.topCenter,
           child: Container(
             decoration: BoxDecoration(

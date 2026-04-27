@@ -91,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   _Pos _nearestPos(double extent) {
     final d = {
-      _Pos.qr:  (extent - kQr).abs(),
+      _Pos.qr: (extent - kQr).abs(),
       _Pos.mid: (extent - kMid).abs(),
       _Pos.top: (extent - _kTop).abs(),
     };
@@ -100,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _snapTo(_Pos pos) {
     final size = switch (pos) {
-      _Pos.qr  => kQr,
+      _Pos.qr => kQr,
       _Pos.mid => kMid,
       _Pos.top => _kTop,
     };
@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _sheetController.animateTo(
       size,
       duration: const Duration(milliseconds: 420),
-      curve: Curves.easeOutBack, // spring overshoot
+      curve: Curves.easeOut, // spring overshoot
     );
   }
 
@@ -350,9 +350,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       QRZone(
                         qrData: mockQrData,
                         qrScale: _qrScale,
-                        onTap: () => _snapTo(
-                          _pos == _Pos.qr ? _Pos.mid : _Pos.qr,
-                        ),
+                        onTap: () =>
+                            _snapTo(_pos == _Pos.qr ? _Pos.mid : _Pos.qr),
                       ),
                     ],
                   ),
@@ -408,87 +407,94 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         _snapTo(_nearestPos(_sheetController.size));
                       }
                     },
-                    child:
-                        NotificationListener<DraggableScrollableNotification>(
-                          onNotification: (n) {
-                            setState(() {
-                              _sheetExtent = n.extent;
-                              _pos = _nearestPos(n.extent);
-                            });
-                            return false;
-                          },
-                          child: DraggableScrollableSheet(
-                            controller: _sheetController,
-                            initialChildSize: kMid,
-                            minChildSize: kQr,
-                            maxChildSize: _kTop,
-                            snap: false,
-                            builder: (context, scrollController) {
-                              return Stack(
-                                children: [
-                                  // Card content — interactive only when fully expanded
-                                  IgnorePointer(
-                                    ignoring: _pos != _Pos.top || _isDraggingCard,
-                                    child: NotificationListener<ScrollNotification>(
-                                      onNotification: (n) {
-                                        if (n is ScrollUpdateNotification &&
-                                            n.metrics.axis == Axis.vertical) {
-                                          _cardScrollPixels = n.metrics.pixels;
-                                        }
-                                        return false;
-                                      },
-                                      child: CardSheet(
-                                        scrollController:          scrollController,
-                                        onHandleTap:               () {},
-                                        profilePreviewLinksLocked: true,
-                                        listTopInset:              0,
-                                        isPremium:                 _isPremium,
-                                        editMode:                  _editMode,
-                                        displayName:               mockDisplayName,
-                                        initials:                  mockInitials,
-                                        title:                     mockTitle,
-                                        company:                   mockCompany,
-                                        viewCount:                 mockViewCount,
-                                        links:                     mockLinks,
-                                        hasSensitiveData:          mockHasSensitiveData,
-                                        phone:                     mockPhone,
-                                        email:                     mockEmail,
-                                      ),
-                                    ),
+                    child: NotificationListener<DraggableScrollableNotification>(
+                      onNotification: (n) {
+                        setState(() {
+                          _sheetExtent = n.extent;
+                          _pos = _nearestPos(n.extent);
+                        });
+                        return false;
+                      },
+                      child: DraggableScrollableSheet(
+                        controller: _sheetController,
+                        initialChildSize: kMid,
+                        minChildSize: kQr,
+                        maxChildSize: _kTop,
+                        snap: false,
+                        builder: (context, scrollController) {
+                          return Stack(
+                            children: [
+                              // Card content — interactive only when fully expanded
+                              IgnorePointer(
+                                ignoring: _pos != _Pos.top || _isDraggingCard,
+                                child: NotificationListener<ScrollNotification>(
+                                  onNotification: (n) {
+                                    if (n is ScrollUpdateNotification &&
+                                        n.metrics.axis == Axis.vertical) {
+                                      _cardScrollPixels = n.metrics.pixels;
+                                    }
+                                    return false;
+                                  },
+                                  child: CardSheet(
+                                    scrollController: scrollController,
+                                    onHandleTap: () {},
+                                    profilePreviewLinksLocked: true,
+                                    listTopInset: 0,
+                                    isPremium: _isPremium,
+                                    editMode: _editMode,
+                                    displayName: mockDisplayName,
+                                    initials: mockInitials,
+                                    title: mockTitle,
+                                    company: mockCompany,
+                                    viewCount: mockViewCount,
+                                    links: mockLinks,
+                                    hasSensitiveData: mockHasSensitiveData,
+                                    phone: mockPhone,
+                                    email: mockEmail,
                                   ),
-                                  // Expansion overlay — captures all gestures when not at top.
-                                  // Kept alive for the full drag via _isDraggingCard so the
-                                  // overlay is never removed mid-gesture if _pos flips to top.
-                                  if (_pos != _Pos.top || _isDraggingCard)
-                                    Positioned.fill(
-                                      child: GestureDetector(
-                                        behavior: HitTestBehavior.opaque,
-                                        onTap: () => _snapTo(_Pos.top),
-                                        onVerticalDragStart: (_) =>
-                                            setState(() => _isDraggingCard = true),
-                                        onVerticalDragUpdate: (details) {
-                                          if (!_sheetController.isAttached) return;
-                                          final delta = details.primaryDelta! / bodyH;
-                                          final newExtent = (_sheetController.size - delta)
-                                              .clamp(kQr, _kTop);
-                                          _sheetController.jumpTo(newExtent);
-                                          setState(() => _sheetExtent = newExtent);
-                                        },
-                                        onVerticalDragEnd: (_) {
-                                          setState(() => _isDraggingCard = false);
-                                          _snapTo(_nearestPos(_sheetController.isAttached
+                                ),
+                              ),
+                              // Expansion overlay — captures all gestures when not at top.
+                              // Kept alive for the full drag via _isDraggingCard so the
+                              // overlay is never removed mid-gesture if _pos flips to top.
+                              if (_pos != _Pos.top || _isDraggingCard)
+                                Positioned.fill(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => _snapTo(_Pos.top),
+                                    onVerticalDragStart: (_) =>
+                                        setState(() => _isDraggingCard = true),
+                                    onVerticalDragUpdate: (details) {
+                                      if (!_sheetController.isAttached) return;
+                                      final delta =
+                                          details.primaryDelta! / bodyH;
+                                      final newExtent =
+                                          (_sheetController.size - delta).clamp(
+                                            kQr,
+                                            _kTop,
+                                          );
+                                      _sheetController.jumpTo(newExtent);
+                                      setState(() => _sheetExtent = newExtent);
+                                    },
+                                    onVerticalDragEnd: (_) {
+                                      setState(() => _isDraggingCard = false);
+                                      _snapTo(
+                                        _nearestPos(
+                                          _sheetController.isAttached
                                               ? _sheetController.size
-                                              : _sheetExtent));
-                                        },
-                                        onVerticalDragCancel: () =>
-                                            setState(() => _isDraggingCard = false),
-                                      ),
-                                    ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
+                                              : _sheetExtent,
+                                        ),
+                                      );
+                                    },
+                                    onVerticalDragCancel: () =>
+                                        setState(() => _isDraggingCard = false),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
 
