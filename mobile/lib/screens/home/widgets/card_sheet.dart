@@ -177,17 +177,23 @@ class CardSheet extends StatelessWidget {
             onToggleLabel:  () {},
             onLabelChanged: (_) {},
             child: Column(
-              children: links
-                  .map(
-                    (l) => Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
-                      child: LinkPill(
-                        link:              l,
-                        linkPreviewLocked: profilePreviewLinksLocked,
-                      ),
+              children: [
+                ...links.map(
+                  (l) => Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
+                    child: LinkPill(
+                      link:              l,
+                      linkPreviewLocked: profilePreviewLinksLocked,
+                      editMode:          editMode,
                     ),
-                  )
-                  .toList(),
+                  ),
+                ),
+                if (editMode)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: _AddLinkRow(onTap: () {}),
+                  ),
+              ],
             ),
           ),
 
@@ -363,4 +369,96 @@ class _DragHandle extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Add link row ───────────────────────────────────────────────────────────
+
+class _AddLinkRow extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AddLinkRow({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap:    onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        height: 40,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color:        AppColors.cardSub,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _DashedRectPainter(
+                  // ignore: deprecated_member_use
+                  color:  AppColors.accent.withOpacity(0.6),
+                  radius: 12,
+                ),
+              ),
+            ),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add, size: 14, color: AppColors.accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Add link',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize:   13,
+                      fontWeight: FontWeight.w500,
+                      color:      AppColors.accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedRectPainter extends CustomPainter {
+  final Color  color;
+  final double radius;
+  const _DashedRectPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color       = color
+      ..strokeWidth = 1
+      ..style       = PaintingStyle.stroke;
+
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1),
+        Radius.circular(radius),
+      ));
+
+    const dashWidth = 4.0;
+    const dashSpace = 4.0;
+
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final end = (distance + dashWidth).clamp(0, metric.length).toDouble();
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRectPainter old) =>
+      old.color != color || old.radius != radius;
 }
