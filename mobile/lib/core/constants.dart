@@ -5,6 +5,6 @@ class AppConstants {
 
 // ── Sheet snap constants (fractions of sheet parent height) ───────────────
 
-const kQr  = 0.60; // minimum sheet extent — QR expansion zone
+const kQr = 0.60; // minimum sheet extent — QR expansion zone
 const kMid = 0.66;
-const kNavBarHeight = 62.0;
+const kNavBarHeight = 48.0;
