@@ -254,11 +254,17 @@ class _RedClearButton extends StatelessWidget {
     return Container(
       width:  20,
       height: 20,
-      decoration: const BoxDecoration(
-        color: Color(0xFFEF4444),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
         shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFF87171), width: 1.0),
       ),
-      child: const Icon(Icons.close, size: 11, color: Colors.white),
+      child: const Icon(
+        Icons.close,
+        size:  13,
+        color: Color(0xFFEF4444),
+        shadows: [Shadow(color: Color(0xFFEF4444), blurRadius: 1.0)],
+      ),
     );
   }
 }
