@@ -1,6 +1,6 @@
 # Status
 
-_Last verified: 2026-09-29 at 0a11d00_
+_Last verified: 2026-09-29 at e279ab1_
 
 Abandoned MVP, being prepared as a portfolio piece (a minimal deploy may follow).
 The backend API and its test suite run locally. The Flutter app passes
@@ -17,9 +17,8 @@ revision (`acbd5984e864_initial_schema`). The `organization` domain files have n
 | Check | Result | Evidence |
 |---|---|---|
 | Tests + coverage | passing | `pytest tests/ --cov=app --cov-fail-under=50`: 122 passed, 63.20% coverage (0a11d00, 2026-09-29). Local Python 3.13 venv; CI uses 3.12. |
-| Migrations apply cleanly | **unverified** | CI runs `alembic upgrade head`. It wasn't run locally, because tests build their schema with `create_all`, not migrations. |
-| CI needs no repo secrets | passing locally | CI env from `backend.yml` + its generated fake credential, clean checkout without `.env`: 122 passed, 63.20% (uncommitted change on 55a41ab, 2026-09-29). |
-| CI on GitHub | **unverified** | No remote yet, so the workflow has never run on GitHub. |
+| Migrations apply cleanly | passing | CI step `alembic upgrade head` on Postgres 16 succeeded (run 36527877807, e279ab1, 2026-09-29). |
+| CI on GitHub | passing | Backend CI run 36527877807 on `ReneMSdev/linkleaf-mono`: 122 passed, 63.20% coverage, Python 3.12, no repo secrets (e279ab1, 2026-09-29). |
 | Docker image builds | **unverified** | Not built. |
 
 **Known issues:** none found in the test run. Low coverage in services: `profile/service.py` 34%, `user/service.py` 30%, `theme/service.py` 44%.
