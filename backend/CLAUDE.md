@@ -33,9 +33,11 @@ users (`client`, `premium_client`, `anon_client`).
 
 - Schema changes go through a new Alembic revision (`alembic revision --autogenerate -m "..."`).
 - CI enforces at least 50% coverage.
-- Layers: `api/` → `domain/` → `core/`. Domains call other domains' service functions and
-  pass internal DTOs, never ORM objects or another domain's models. `core/db/registry.py`
-  is the one deliberate exception.
+- Layers: `api/` → `domain/` → `core/`. New code should have domains call other domains'
+  service functions and pass internal DTOs, not ORM objects or another domain's models.
+  Existing code doesn't fully follow this: several services import other domains' models,
+  and `api/profiles.py` and `api/contacts.py` run some queries directly. Don't copy that
+  pattern, and don't refactor it without asking.
 - Services raise domain exceptions (`core/exceptions.py`); routers convert them to `HTTPException`.
 - Never name a service function plain `update` or `delete`, because that shadows SQLAlchemy's
   imports. Use `update_profile()`, `delete_link()` and so on.

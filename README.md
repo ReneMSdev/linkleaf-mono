@@ -17,6 +17,9 @@ contact details, media and a theme, and share it through a short URL or a QR cod
 | [`mobile/`](mobile/) | Flutter app: profile, QR and edit-mode UI |
 | [`docs/`](docs/) | Current status, backlog and decision log |
 
+Diagrams of the system, the auth flow, the QR/public-profile flow and the subscription
+lifecycle are in [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Backend
 
 FastAPI app running on Python 3.12, with Postgres 16. It includes a Dockerfile

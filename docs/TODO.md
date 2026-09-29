@@ -9,7 +9,7 @@
 
 Minimal deploy for in-person networking, in order:
 
-- [ ] Firebase console: copy the UIDs of your account and the test accounts, and add them to `ALLOWED_FIREBASE_UIDS`. Keep Anonymous sign-in off. Optionally turn off self sign-up (Authentication → Settings → User actions). The backend allowlist is already in place.
+- [ ] Firebase console: keep Anonymous sign-in off. The UIDs are already in the local `backend/.env` (2 accounts); set the same list in Cloud Run when deploying. Optionally turn off self sign-up (Authentication → Settings → User actions). The backend allowlist is already in place.
 - [ ] Deploy the backend to Cloud Run with a free Postgres (Neon or Supabase) instead of Cloud SQL. Set `--max-instances=1`, a billing budget alert, `DEBUG=false`, `ALLOWED_ORIGINS`, and a long random `REVENUECAT_WEBHOOK_SECRET`. Grant yourself premium with a direct DB update; no RevenueCat needed.
 - [ ] Plan the public profile page (planning only, no code). Scanning the QR code currently ends at `/p/{slug}`, which returns JSON. Decide between the backend serving HTML to browsers and a small static site, and plan the "save contact" vCard link and scope. Inputs from the old docs:
   - The original plan was Next.js server-rendering `/p/{slug}` behind a CDN with a 60s TTL (see decisions.md).
@@ -20,6 +20,8 @@ Minimal deploy for in-person networking, in order:
 
 Other:
 
+- [ ] Bug: restoring a soft-deleted profile or media item only checks the 30-day window, not the plan. A user who dropped to free can restore premium profiles, portfolio images and résumés (`profile/service.py` `restore`, `media/service.py` `restore_media`).
+- [ ] Portfolio cleanup (ask before doing): the `print()` debug lines in `app/auth/dependencies.py` (swap for structlog) and the empty `organization` domain scaffold.
 - [ ] Mobile: fill `analysis_options.yaml` (`include: package:flutter_lints/flutter.yaml`). It's empty now, so the lint rules aren't enforced.
 - [ ] Backend coverage may be under-counted: tested async paths (e.g. vCard, link reorder) show as uncovered. Try `concurrency = greenlet` in the coverage config.
 - [ ] Add mobile CI (`flutter analyze` and `flutter test`) alongside `backend.yml`.
