@@ -10,6 +10,7 @@ webhooks from RevenueCat.
 - `app/api/`: routers, one per domain.
 - `app/domain/<name>/`: `models.py` (SQLAlchemy), `dto.py` (Pydantic), `service.py` (logic).
 - `app/core/db/registry.py`: imports all models. It must be imported before other app modules.
+- `app/auth/dependencies.py`: token check, `ALLOWED_FIREBASE_UIDS` allowlist (checked before any user lookup or creation), and premium gate.
 - `app/config/settings.py`: env-driven settings. Env vars are listed in `.github/workflows/backend.yml`.
 - `migrations/versions/`: Alembic revisions.
 - `scripts/seed_themes.py`: seeds themes. It's idempotent: `python scripts/seed_themes.py`.

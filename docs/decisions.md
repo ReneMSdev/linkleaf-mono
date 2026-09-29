@@ -30,3 +30,9 @@ entries: if a decision is reversed, add a new entry that references the old one.
 **Decision:** `backend.yml` sets placeholder values for required settings and generates a throwaway service-account key at run time. The `workflow_call` trigger and its required secrets were removed (the only caller, the stub `deploy.yml`, was deleted in `120cdc2`).
 **Alternatives:** Copying the real `.env` values into GitHub secrets; a separate Firebase/GCP project for CI.
 **Why:** Tests fake the logged-in user and mock storage, so CI never calls Firebase or GCS. Firebase only parses the key at import. Fake values keep production credentials out of CI and let a new repo run CI with no setup. Verified locally: 122 passed, 63.20% with no `.env`.
+
+## 2026-09-29: Restrict the API to allowlisted Firebase UIDs, failing closed when deployed
+
+**Decision:** `ALLOWED_FIREBASE_UIDS` limits who can use the API. Unlisted UIDs get a 403 on protected routes and are treated as anonymous on optional-auth routes, and they never get a user row. An empty list means no restriction, but settings refuse to load in `staging` or `production` with an empty list.
+**Alternatives:** Relying only on Firebase's "disable sign-up" setting; allowlisting emails instead of UIDs.
+**Why:** Any valid Firebase token auto-created a user, and a mobile app's Firebase config is public, so strangers could create accounts and upload to the public bucket. The backend check holds even if Firebase settings change. UIDs are fixed; emails in tokens can be unverified. Failing closed stops a deploy from going out open by accident.

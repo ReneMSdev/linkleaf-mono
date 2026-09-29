@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.exceptions import AuthException, InvalidTokenError, MissingTokenError, TokenExpiredError
 from app.auth.firebase_client import verify_token
+from app.config.settings import get_settings
 from app.core.db.session import AsyncSessionLocal, get_db
 from app.core.types import UserID
 from app.domain.user import service as user_service
@@ -24,10 +25,21 @@ from app.domain.user.service import (
 
 
 # -----------------------------------------------------------------------------
+# True when the Firebase UID may use the API. An empty ALLOWED_FIREBASE_UIDS
+# means no restriction (settings refuse an empty list in staging/production).
+# Checked before lookup so unlisted accounts never get a user row.
+# -----------------------------------------------------------------------------
+def _is_allowed_uid(firebase_uid: str) -> bool:
+    allowed = get_settings().ALLOWED_FIREBASE_UIDS
+    return not allowed or firebase_uid in allowed
+
+
+# -----------------------------------------------------------------------------
 # Resolves the authenticated user from the Authorization header.
 # Used on protected routes that require a valid Firebase token.
 # Returns UserInternal with subscription loaded.
 # Raises HTTPException(401) when token is missing, invalid, or expired.
+# Raises HTTPException(403) when the UID is not in ALLOWED_FIREBASE_UIDS.
 # -----------------------------------------------------------------------------
 async def get_current_user(
     request: Request,
@@ -44,6 +56,8 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail=str(e)) from e
 
     firebase_uid = decoded_token["uid"]
+    if not _is_allowed_uid(firebase_uid):
+        raise HTTPException(status_code=403, detail="Account not permitted.")
     user = await get_by_firebase_uid(firebase_uid, db)
     if user is None:
         user = await create_from_firebase(decoded_token, db)
@@ -59,6 +73,7 @@ async def get_current_user(
 # Same as get_current_user but returns None when no token or invalid token.
 # Used on routes that optionally use user context (e.g. personalized defaults).
 # When token is present and valid, full provisioning + background task runs.
+# UIDs not in ALLOWED_FIREBASE_UIDS are treated as anonymous.
 # Returns UserInternal when authenticated, None otherwise.
 # -----------------------------------------------------------------------------
 async def get_optional_user(
@@ -77,6 +92,8 @@ async def get_optional_user(
         return None
 
     firebase_uid = decoded_token["uid"]
+    if not _is_allowed_uid(firebase_uid):
+        return None
     user = await get_by_firebase_uid(firebase_uid, db)
     if user is None:
         user = await create_from_firebase(decoded_token, db)

@@ -42,6 +42,9 @@ aimed at Cloud Run, which hasn't been built or deployed yet. It uses these servi
   - Résumés and portfolio images (up to 100) are premium features.
   - Files go to public or private GCS buckets, and private files are served through signed URLs.
   - Deleted media can be restored.
+- **Access control:** `ALLOWED_FIREBASE_UIDS` limits the API to listed Firebase accounts.
+  Unlisted accounts get a 403 on protected routes, are treated as anonymous on public ones,
+  and never get a user row. The app refuses to start in staging or production if the list is empty.
 - **Themes and plans:** there are free and premium themes. Premium themes are shown as
   locked, and applying one requires a premium subscription. Subscription status is kept in
   sync through RevenueCat webhooks. When a subscription lapses, profiles and media beyond
@@ -55,9 +58,9 @@ aimed at Cloud Run, which hasn't been built or deployed yet. It uses these servi
 The routers in `app/api/` are mostly thin, and the API sits under `/v1`. The public
 `/p` and `/q` routes sit outside it so that printed URLs never change.
 
-**Tests:** 122 async API tests (pytest + httpx) run against a real Postgres database.
+**Tests:** 133 async API tests (pytest + httpx) run against a real Postgres database.
 CI applies the migrations, runs the suite, and fails if coverage drops below 50%
-(the latest run reported 63%). CI needs no secrets: the tests fake the signed-in user and
+(it's currently about 65%). CI needs no secrets: the tests fake the signed-in user and
 mock storage and image processing, and the workflow generates a throwaway service-account key.
 
 ## Mobile
@@ -99,6 +102,9 @@ uvicorn app.main:app --reload --port 8080
 - `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`
 - `GCS_PROJECT_ID`, `GCS_PUBLIC_BUCKET_NAME`, `GCS_PRIVATE_BUCKET_NAME`, `GCS_SERVICE_ACCOUNT_JSON`
 - `REVENUECAT_WEBHOOK_SECRET`
+- `ALLOWED_FIREBASE_UIDS`, a JSON list such as `["uid1","uid2"]`. It's required when
+  `APP_ENV` is `staging` or `production`. Locally, leave it unset (or set it to `[]`) to allow
+  any account; a bare `ALLOWED_FIREBASE_UIDS=` with no value fails to parse.
 
 Both `*_SERVICE_ACCOUNT_JSON` values must be well-formed service-account JSON, because the
 Firebase SDK parses the key at startup. Real sign-in and uploads need real Firebase and GCS
