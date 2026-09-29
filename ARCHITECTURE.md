@@ -42,8 +42,8 @@ flowchart LR
 
 The intended layering is `api/` → `domain/` → `core/`, with domains calling each other
 through service functions. The code mostly follows it, with exceptions: some services
-query other domains' models directly (for example, the subscription service touches
-profiles and media during the expiration cleanup), and a few routers run small queries
+query other domains' models directly (for example, the subscription service counts
+profiles and media for its plan-limit checks), and a few routers run small queries
 themselves.
 
 ## Authentication and first login

@@ -52,3 +52,9 @@ Carried over from `PROJECT_STATUS.md` and `CURSOR_INSTRUCTIONS.md` in the archiv
 - **EXPIRATION soft-deletes content beyond the free limits.** The order matters: media on non-default profiles first, then those profiles, then the default profile's extra media.
 - **Soft deletes have a 30-day grace period** and apply to profiles and media only. Owners can restore within that window through the restore endpoints. A purge job for rows and GCS files was planned but never built.
 - **Planned architecture:** `linkleaf.co` would be Next.js, server-rendering `/p/{slug}` behind a CDN with a 60s TTL, and `api.linkleaf.co` would be FastAPI, both on Cloud Run. It was never built. An older note in the Cursor instructions assigned the profile viewer to Flutter web instead.
+
+## 2026-09-29: Archive the old repos instead of deleting them; import only the useful notes
+
+**Decision:** `qr_backend` and `linkleaf-frontend` are archived on GitHub (private, read-only, description pointing here) after their Actions secrets were deleted. Their tracking docs weren't copied wholesale: coding rules went to `backend/CLAUDE.md`, design reasons to the imported entry above, and post-MVP ideas to `TODO.md`. The local clones moved to `~/Dev/_archive/`.
+**Alternatives:** Deleting the repos; copying the old status, handoff and Cursor docs into `docs/` as they were.
+**Why:** All code history is already in this repo, but the old docs are only in the archived repos, and archiving is reversible. The secrets had to go first because archived repos are read-only. René didn't need the full handoff or status history, and several old claims no longer matched the code (portfolio limit 10 vs 100, an unbuilt "regenerate QR" endpoint).
