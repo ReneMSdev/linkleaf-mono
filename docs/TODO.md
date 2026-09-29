@@ -7,6 +7,7 @@
 ## Next
 <!-- Planned soon, in priority order. -->
 - [ ] Mobile: fill `analysis_options.yaml` (`include: package:flutter_lints/flutter.yaml`). It's empty now, so the lint rules aren't enforced.
+- [ ] Backend coverage may be under-counted: tested async paths (e.g. vCard, link reorder) show as uncovered. Try `concurrency = greenlet` in the coverage config.
 - [ ] Add mobile CI (`flutter analyze` and `flutter test`) alongside `backend.yml`.
 - [ ] Document local backend setup: creating the `linkleaf_test` DB, and which `.env` vars are required (`backend/.env.example` doesn't exist).
 - [ ] Replace the default Flutter boilerplate in `mobile/README.md`.

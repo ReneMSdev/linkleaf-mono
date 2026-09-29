@@ -25,7 +25,7 @@ revision (`acbd5984e864_initial_schema`). The `organization` domain files have n
 
 ## Mobile
 
-**State:** Flutter app with auth screens (login, register) and a home screen (profile card, QR, links, edit mode). Talks to the backend through `dio` (`lib/services/api_service.dart`).
+**State:** Flutter app with auth screens (login, register) and a home screen (profile card, QR, links, edit mode). Runs on mock data. `lib/services/api_service.dart` (dio + Firebase ID token) exists but nothing calls it, and Firebase isn't set up. The providers are empty placeholders, and the login screen is a stub that goes straight to home.
 
 | Check | Result | Evidence |
 |---|---|---|
