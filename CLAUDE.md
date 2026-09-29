@@ -2,7 +2,8 @@
 
 Digital profile / link page app: users build a public profile (links, contacts,
 media, themes) reachable by URL and QR code, with free and premium tiers.
-Stage: prototype.
+Stage: abandoned MVP, being kept up as a portfolio piece; a minimal deploy for
+personal networking may follow.
 
 ## Layout
 

@@ -10,24 +10,6 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend.yml'
-  workflow_call:
-    secrets:
-      SECRET_KEY:
-        required: true
-      FIREBASE_PROJECT_ID:
-        required: true
-      FIREBASE_SERVICE_ACCOUNT_JSON:
-        required: true
-      GCS_PUBLIC_BUCKET_NAME:
-        required: true
-      GCS_PRIVATE_BUCKET_NAME:
-        required: true
-      GCS_PROJECT_ID:
-        required: true
-      GCS_SERVICE_ACCOUNT_JSON:
-        required: true
-      REVENUECAT_WEBHOOK_SECRET:
-        required: true
 
 jobs:
   test:
@@ -52,23 +34,23 @@ jobs:
         ports:
           - 5432:5432
 
+    # No repository secrets needed: tests fake the logged-in user and mock storage.
+    # Firebase still parses a service-account key at import, so a throwaway one is
+    # generated below. Placeholders here only satisfy required settings.
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       APP_NAME: LinkLeaf
       APP_ENV: test
       DEBUG: 'false'
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      SECRET_KEY: ci-placeholder
       PUBLIC_BASE_URL: http://localhost:8000
       DATABASE_URL: postgresql+asyncpg://qr_app_user:devpassword@localhost/linkleaf_test
       TEST_DATABASE_URL: postgresql+asyncpg://qr_app_user:devpassword@localhost/linkleaf_test
-      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-      GCS_PUBLIC_BUCKET_NAME: ${{ secrets.GCS_PUBLIC_BUCKET_NAME }}
-      GCS_PRIVATE_BUCKET_NAME: ${{ secrets.GCS_PRIVATE_BUCKET_NAME }}
-      GCS_PROJECT_ID: ${{ secrets.GCS_PROJECT_ID }}
-      GCS_SERVICE_ACCOUNT_JSON: ${{ secrets.GCS_SERVICE_ACCOUNT_JSON }}
-      REVENUECAT_WEBHOOK_SECRET: ${{ secrets.REVENUECAT_WEBHOOK_SECRET }}
-
+      FIREBASE_PROJECT_ID: linkleaf-ci-fake
+      GCS_PUBLIC_BUCKET_NAME: ci-public
+      GCS_PRIVATE_BUCKET_NAME: ci-private
+      GCS_PROJECT_ID: linkleaf-ci-fake
+      REVENUECAT_WEBHOOK_SECRET: ci-placeholder
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -88,6 +70,31 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
+
+      - name: Generate throwaway service-account credential
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric import rsa
+          key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+          pem = key.private_bytes(
+              serialization.Encoding.PEM,
+              serialization.PrivateFormat.PKCS8,
+              serialization.NoEncryption(),
+          ).decode()
+          cred = json.dumps({
+              "type": "service_account",
+              "project_id": "linkleaf-ci-fake",
+              "private_key_id": "fake",
+              "private_key": pem,
+              "client_email": "ci@linkleaf-ci-fake.iam.gserviceaccount.com",
+              "client_id": "0",
+              "token_uri": "https://oauth2.googleapis.com/token",
+          })
+          for name in ("FIREBASE_SERVICE_ACCOUNT_JSON", "GCS_SERVICE_ACCOUNT_JSON"):
+              print(f"{name}={cred}")
+          PY
 
       - name: Run migrations
         run: alembic upgrade head
