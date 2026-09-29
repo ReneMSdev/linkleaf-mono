@@ -1,0 +1,683 @@
+import 'dart:ui' show lerpDouble;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../core/colors.dart';
+import '../../core/constants.dart';
+import 'widgets/bottom_nav.dart';
+import 'widgets/card_sheet.dart';
+import 'widgets/dev_tier_fab.dart';
+import 'widgets/edit_fab.dart';
+import 'widgets/edit_top_bar.dart';
+import 'widgets/preview_banner.dart';
+import 'widgets/qr_zone.dart';
+import 'widgets/save_contact_fab.dart';
+import 'widgets/top_bar.dart';
+
+// _kTop is computed per-layout — see _HomeScreenState._kTop
+
+enum _Pos { qr, mid, top }
+
+enum _PreviewPhase {
+  idle,
+  animatingIn,
+  ready,
+  animatingOutUi,
+  animatingOutSheet,
+}
+
+enum _EditPhase { idle, animatingIn, ready, animatingOutUi, animatingOutSheet }
+
+// Mock data lives in each widget file — see widgets/card_sheet.dart,
+// widgets/qr_zone.dart, and widgets/top_bar.dart for the TODO blocks.
+
+// ── Screen ────────────────────────────────────────────────────────────────
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  final _sheetController = DraggableScrollableController();
+  late final AnimationController _previewExpandController;
+  late final AnimationController _previewExitUiController;
+  late final CurvedAnimation _previewExpandCurve;
+  late final AnimationController _editExpandController;
+  late final AnimationController _editExitUiController;
+  late final CurvedAnimation _editExpandCurve;
+  final ScrollController _previewScrollController = ScrollController();
+  final ScrollController _editScrollController = ScrollController();
+
+  _Pos _pos = _Pos.mid;
+  double _sheetExtent = kMid;
+  int _navIndex = 0;
+  // Dev-only tier toggle — replaced by SubscriptionProvider.isPremium from API.
+  bool _isPremium = false;
+
+  _EditPhase _editPhase = _EditPhase.idle;
+  double _editEntryExtent = kMid;
+
+  bool get _editMode => _editPhase != _EditPhase.idle;
+
+  // Computed in build() from real screen metrics; fallback keeps things safe
+  // before the first layout.
+  double _kTop = 0.92;
+
+  _PreviewPhase _previewPhase = _PreviewPhase.idle;
+  _Pos _previewEntryPosition = _Pos.mid;
+  double _previewEntryExtent = kMid;
+  double _cardScrollPixels = 0;
+
+  // Tracks extent at pointer-down to decide whether a release is a drag end.
+  double? _dragStartExtent;
+
+  // True while the expansion overlay is actively handling a drag, so the
+  // overlay is never removed mid-gesture even if _pos flips to top.
+  bool _isDraggingCard = false;
+
+  // ── QR scale ─────────────────────────────────────────────────────────
+
+  // Smoothly scales 1.0 → 1.35 as the sheet moves from mid down to kQr.
+  double get _qrScale {
+    if (_sheetExtent >= kMid) return 1.0;
+    final t = (kMid - _sheetExtent) / (kMid - kQr);
+    return 1.0 + 0.35 * t.clamp(0.0, 1.0);
+  }
+
+  // ── Snap helpers ──────────────────────────────────────────────────────
+
+  _Pos _nearestPos(double extent) {
+    final d = {
+      _Pos.qr: (extent - kQr).abs(),
+      _Pos.mid: (extent - kMid).abs(),
+      _Pos.top: (extent - _kTop).abs(),
+    };
+    return d.entries.reduce((a, b) => a.value < b.value ? a : b).key;
+  }
+
+  void _snapTo(_Pos pos) {
+    final size = switch (pos) {
+      _Pos.qr => kQr,
+      _Pos.mid => kMid,
+      _Pos.top => _kTop,
+    };
+    setState(() {
+      _pos = pos;
+      _sheetExtent = size;
+    });
+    if (!_sheetController.isAttached) return;
+    _sheetController.animateTo(
+      size,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeOut, // spring overshoot
+    );
+  }
+
+  bool get _previewCardActive => _previewPhase != _PreviewPhase.idle;
+
+  double _chromeOpacity() {
+    final linearExpand = _previewExpandController.value;
+    switch (_previewPhase) {
+      case _PreviewPhase.idle:
+      case _PreviewPhase.animatingOutSheet:
+        return 0;
+      case _PreviewPhase.animatingIn:
+        return const Interval(200 / 350, 1.0).transform(linearExpand);
+      case _PreviewPhase.ready:
+        return 1;
+      case _PreviewPhase.animatingOutUi:
+        return 1 - _previewExitUiController.value;
+    }
+  }
+
+  void _onPreviewExpandStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed &&
+        _previewPhase == _PreviewPhase.animatingIn) {
+      setState(() => _previewPhase = _PreviewPhase.ready);
+    }
+    if (status == AnimationStatus.dismissed &&
+        _previewPhase == _PreviewPhase.animatingOutSheet) {
+      // Restore status bar icons to light for the dark app background.
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+      setState(() => _previewPhase = _PreviewPhase.idle);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_sheetController.isAttached) return;
+        _sheetController.jumpTo(_previewEntryExtent);
+      });
+    }
+  }
+
+  void _onPreviewExitUiStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    if (_previewPhase != _PreviewPhase.animatingOutUi) return;
+    setState(() => _previewPhase = _PreviewPhase.animatingOutSheet);
+    _previewExitUiController.reset();
+    _previewExpandController.reverse();
+  }
+
+  void _onEyeTap() {
+    if (_previewPhase != _PreviewPhase.idle) return;
+    _previewEntryPosition = _pos;
+    _previewEntryExtent = _sheetController.isAttached
+        ? _sheetController.size
+        : _sheetExtent;
+    // Card background is light — switch status bar icons to dark.
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
+    setState(() => _previewPhase = _PreviewPhase.animatingIn);
+    _previewExpandController.forward(from: 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_previewScrollController.hasClients) return;
+      _previewScrollController.jumpTo(_cardScrollPixels);
+    });
+  }
+
+  void _onPreviewClose() {
+    if (_previewPhase != _PreviewPhase.ready) return;
+    setState(() => _previewPhase = _PreviewPhase.animatingOutUi);
+    _previewExitUiController.forward(from: 0);
+  }
+
+  double _editChromeOpacity() {
+    switch (_editPhase) {
+      case _EditPhase.idle:
+      case _EditPhase.animatingOutSheet:
+        return 0;
+      case _EditPhase.animatingIn:
+        return const Interval(0.6, 1.0).transform(_editExpandController.value);
+      case _EditPhase.ready:
+        return 1;
+      case _EditPhase.animatingOutUi:
+        return 1 - _editExitUiController.value;
+    }
+  }
+
+  void _onEditExpandStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed &&
+        _editPhase == _EditPhase.animatingIn) {
+      setState(() => _editPhase = _EditPhase.ready);
+    }
+    if (status == AnimationStatus.dismissed &&
+        _editPhase == _EditPhase.animatingOutSheet) {
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+      setState(() => _editPhase = _EditPhase.idle);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_sheetController.isAttached) return;
+        _sheetController.jumpTo(_editEntryExtent);
+      });
+    }
+  }
+
+  void _onEditExitUiStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    if (_editPhase != _EditPhase.animatingOutUi) return;
+    setState(() => _editPhase = _EditPhase.animatingOutSheet);
+    _editExitUiController.reset();
+    _editExpandController.reverse();
+  }
+
+  void _enterEditMode() {
+    if (_editPhase != _EditPhase.idle) return;
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
+    _editEntryExtent = _sheetController.isAttached
+        ? _sheetController.size
+        : _sheetExtent;
+    setState(() => _editPhase = _EditPhase.animatingIn);
+    _editExpandController.forward(from: 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_editScrollController.hasClients) return;
+      _editScrollController.jumpTo(_cardScrollPixels);
+    });
+  }
+
+  void _exitEditMode() {
+    if (_editPhase != _EditPhase.ready) return;
+    setState(() => _editPhase = _EditPhase.animatingOutUi);
+    _editExitUiController.forward(from: 0);
+  }
+
+  Color _previewBannerBg(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return dark ? AppColors.accent : const Color(0xFF8A7560);
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _previewExpandController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    )..addStatusListener(_onPreviewExpandStatus);
+    _previewExitUiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    )..addStatusListener(_onPreviewExitUiStatus);
+    _previewExpandCurve = CurvedAnimation(
+      parent: _previewExpandController,
+      curve: Curves.easeInOutCubic,
+    );
+    _editExpandController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    )..addStatusListener(_onEditExpandStatus);
+    _editExitUiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    )..addStatusListener(_onEditExitUiStatus);
+    _editExpandCurve = CurvedAnimation(
+      parent: _editExpandController,
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _previewExpandCurve.dispose();
+    _previewExpandController.dispose();
+    _previewExitUiController.dispose();
+    _editExpandCurve.dispose();
+    _editExpandController.dispose();
+    _editExitUiController.dispose();
+    _previewScrollController.dispose();
+    _editScrollController.dispose();
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final topPad = mq.padding.top;
+    final botPad = mq.padding.bottom;
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: AnimatedBuilder(
+        animation: Listenable.merge([
+          _previewExpandController,
+          _previewExitUiController,
+          _editExpandController,
+          _editExitUiController,
+        ]),
+        builder: (context, _) {
+          final screenH = mq.size.height;
+          final navH = kNavBarHeight + botPad;
+          final bodyH = screenH - navH;
+
+          // Card stops just below the top bar (status bar + 50px bar + 8px gap).
+          final computedTop = ((bodyH - topPad - 50 - 8) / bodyH).clamp(
+            0.5,
+            0.99,
+          );
+          if (computedTop != _kTop) _kTop = computedTop;
+
+          final expandT = _previewExpandCurve.value;
+          final topStart = bodyH * (1 - _previewEntryExtent);
+          final hStart = _previewEntryExtent * bodyH;
+          final cardTop = lerpDouble(topStart, 0, expandT)!;
+          final cardH = lerpDouble(hStart, screenH, expandT)!;
+          final radius = lerpDouble(24, 0, expandT)!;
+          final chromeOp = _chromeOpacity();
+
+          final editExpandT = _editExpandCurve.value;
+          final editTopStart = bodyH * (1 - _editEntryExtent);
+          final editHStart = _editEntryExtent * bodyH;
+          final editCardTop = lerpDouble(editTopStart, 0, editExpandT)!;
+          final editCardH = lerpDouble(editHStart, screenH, editExpandT)!;
+          final editRadius = lerpDouble(24, 0, editExpandT)!;
+          final editChromeOp = _editChromeOpacity();
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // QR zone — fixed below the top bar, card nudges down on tap
+              if (!_editMode)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: navH,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(height: topPad + 50 + 8),
+                      QRZone(
+                        qrData: mockQrData,
+                        qrScale: _qrScale,
+                        onTap: () =>
+                            _snapTo(_pos == _Pos.qr ? _Pos.mid : _Pos.qr),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Top bar
+              Positioned(
+                top: topPad,
+                left: 0,
+                right: 0,
+                height: 50,
+                child: IgnorePointer(
+                  ignoring: _previewCardActive || _editMode,
+                  child: TopBar(slug: mockSlug, onEyeTap: _onEyeTap),
+                ),
+              ),
+
+              // Bottom nav (same widget as before; lives in stack for z-order)
+              if (!_editMode)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: navH,
+                  child: IgnorePointer(
+                    ignoring: _previewCardActive,
+                    child: BottomNav(
+                      currentIndex: _navIndex,
+                      bottomPad: botPad,
+                      onTap: (i) => setState(() => _navIndex = i),
+                    ),
+                  ),
+                ),
+
+              // Draggable sheet — only while not using the preview morph layer or edit overlay
+              if (!_previewCardActive && !_editMode)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: navH,
+                  child: Listener(
+                    onPointerDown: (_) {
+                      if (_sheetController.isAttached) {
+                        _dragStartExtent = _sheetController.size;
+                      }
+                    },
+                    onPointerUp: (_) {
+                      final start = _dragStartExtent;
+                      _dragStartExtent = null;
+                      if (start == null || !_sheetController.isAttached) return;
+                      if ((_sheetController.size - start).abs() > 0.015) {
+                        _snapTo(_nearestPos(_sheetController.size));
+                      }
+                    },
+                    child: NotificationListener<DraggableScrollableNotification>(
+                      onNotification: (n) {
+                        setState(() {
+                          _sheetExtent = n.extent;
+                          _pos = _nearestPos(n.extent);
+                        });
+                        return false;
+                      },
+                      child: DraggableScrollableSheet(
+                        controller: _sheetController,
+                        initialChildSize: kMid,
+                        minChildSize: kQr,
+                        maxChildSize: _kTop,
+                        snap: false,
+                        builder: (context, scrollController) {
+                          return Stack(
+                            children: [
+                              // Card content — interactive only when fully expanded
+                              IgnorePointer(
+                                ignoring: _pos != _Pos.top || _isDraggingCard,
+                                child: NotificationListener<ScrollNotification>(
+                                  onNotification: (n) {
+                                    if (n is ScrollUpdateNotification &&
+                                        n.metrics.axis == Axis.vertical) {
+                                      _cardScrollPixels = n.metrics.pixels;
+                                    }
+                                    return false;
+                                  },
+                                  child: CardSheet(
+                                    scrollController: scrollController,
+                                    onHandleTap: () {},
+                                    profilePreviewLinksLocked: true,
+                                    listTopInset: 0,
+                                    isPremium: _isPremium,
+                                    editMode: _editMode,
+                                    displayName: mockDisplayName,
+                                    initials: mockInitials,
+                                    title: mockTitle,
+                                    company: mockCompany,
+                                    links: mockLinks,
+                                    hasSensitiveData: mockHasSensitiveData,
+                                    phone: mockPhone,
+                                    email: mockEmail,
+                                  ),
+                                ),
+                              ),
+                              // Expansion overlay — captures all gestures when not at top.
+                              // Kept alive for the full drag via _isDraggingCard so the
+                              // overlay is never removed mid-gesture if _pos flips to top.
+                              if (_pos != _Pos.top || _isDraggingCard)
+                                Positioned.fill(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => _snapTo(_Pos.top),
+                                    onVerticalDragStart: (_) =>
+                                        setState(() => _isDraggingCard = true),
+                                    onVerticalDragUpdate: (details) {
+                                      if (!_sheetController.isAttached) return;
+                                      final delta =
+                                          details.primaryDelta! / bodyH;
+                                      final newExtent =
+                                          (_sheetController.size - delta).clamp(
+                                            kQr,
+                                            _kTop,
+                                          );
+                                      _sheetController.jumpTo(newExtent);
+                                      setState(() => _sheetExtent = newExtent);
+                                    },
+                                    onVerticalDragEnd: (_) {
+                                      setState(() => _isDraggingCard = false);
+                                      _snapTo(
+                                        _nearestPos(
+                                          _sheetController.isAttached
+                                              ? _sheetController.size
+                                              : _sheetExtent,
+                                        ),
+                                      );
+                                    },
+                                    onVerticalDragCancel: () =>
+                                        setState(() => _isDraggingCard = false),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Floating edit button
+              if (!_previewCardActive && !_editMode)
+                Positioned(
+                  right: 16,
+                  bottom: navH + 16,
+                  child: EditFab(editMode: false, onTap: _enterEditMode),
+                ),
+
+              // Dev-only tier toggle
+              if (!_previewCardActive && !_editMode)
+                Positioned(
+                  left: 16,
+                  bottom: navH + 16,
+                  child: DevTierFab(
+                    isPremium: _isPremium,
+                    onToggle: () => setState(() => _isPremium = !_isPremium),
+                  ),
+                ),
+
+              // Edit mode morph layer
+              if (_editPhase != _EditPhase.idle)
+                Positioned(
+                  top: editCardTop,
+                  left: 0,
+                  right: 0,
+                  height: editCardH,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(editRadius),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CardSheet(
+                          scrollController: _editScrollController,
+                          onHandleTap: () {},
+                          profilePreviewLinksLocked: true,
+                          showDragHandle: false,
+                          topCornerRadius: editRadius,
+                          listTopInset: topPad + 50 + 8,
+                          isPremium: _isPremium,
+                          editMode: true,
+                          displayName: mockDisplayName,
+                          initials: mockInitials,
+                          title: mockTitle,
+                          company: mockCompany,
+                          links: mockLinks,
+                          hasSensitiveData: mockHasSensitiveData,
+                          phone: mockPhone,
+                          email: mockEmail,
+                        ),
+                        IgnorePointer(
+                          ignoring: editChromeOp < 0.01,
+                          child: Opacity(
+                            opacity: editChromeOp,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        height: topPad,
+                                        color: AppColors.surface,
+                                      ),
+                                      EditTopBar(
+                                        slug: mockSlug,
+                                        onContact: () {},
+                                        onTheme: () {},
+                                        onDone: _exitEditMode,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Profile preview morph + chrome
+              if (_previewCardActive)
+                Positioned(
+                  key: ValueKey(_previewEntryPosition),
+                  top: cardTop,
+                  left: 0,
+                  right: 0,
+                  height: cardH,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(radius),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (n) {
+                            if (n is ScrollUpdateNotification &&
+                                n.metrics.axis == Axis.vertical) {
+                              _cardScrollPixels = n.metrics.pixels;
+                            }
+                            return false;
+                          },
+                          child: CardSheet(
+                            scrollController: _previewScrollController,
+                            onHandleTap: () {},
+                            profilePreviewLinksLocked: true,
+                            showDragHandle: false,
+                            topCornerRadius: radius,
+                            listTopInset: PreviewBanner.listTopInset(
+                              topInset: mq.padding.top,
+                              showSensitiveLine: mockHasSensitiveData,
+                            ),
+                            // Clear the Save Contact FAB (52px) + its 20px
+                            // bottom offset + safe area + a 16px breathing gap.
+                            listBottomInset: mq.padding.bottom + 88,
+                            isPremium: _isPremium,
+                            displayName: mockDisplayName,
+                            initials: mockInitials,
+                            title: mockTitle,
+                            company: mockCompany,
+                            links: mockLinks,
+                            hasSensitiveData: mockHasSensitiveData,
+                            phone: mockPhone,
+                            email: mockEmail,
+                          ),
+                        ),
+                        IgnorePointer(
+                          ignoring: chromeOp < 0.01,
+                          child: Opacity(
+                            opacity: chromeOp,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: PreviewBanner(
+                                    topInset: mq.padding.top,
+                                    horizontalPadding: mq.padding,
+                                    background: _previewBannerBg(context),
+                                    showSensitiveLine: mockHasSensitiveData,
+                                    onBanner:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppColors.cardText
+                                        : Colors.white,
+                                    onBannerMuted:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppColors.cardMuted
+                                        : const Color(0xE6FFFFFF),
+                                    onClose: _onPreviewClose,
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: mq.padding.bottom + 20,
+                                  child: const SaveContactFab(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
