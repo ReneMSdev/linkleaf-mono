@@ -1,0 +1,90 @@
+name: Test Suite
+
+on:
+  push:
+    branches: ['working']
+  pull_request:
+    branches: [main]
+  workflow_call:
+    secrets:
+      SECRET_KEY:
+        required: true
+      FIREBASE_PROJECT_ID:
+        required: true
+      FIREBASE_SERVICE_ACCOUNT_JSON:
+        required: true
+      GCS_PUBLIC_BUCKET_NAME:
+        required: true
+      GCS_PRIVATE_BUCKET_NAME:
+        required: true
+      GCS_PROJECT_ID:
+        required: true
+      GCS_SERVICE_ACCOUNT_JSON:
+        required: true
+      REVENUECAT_WEBHOOK_SECRET:
+        required: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: qr_app_user
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: linkleaf_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      APP_NAME: LinkLeaf
+      APP_ENV: test
+      DEBUG: 'false'
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      PUBLIC_BASE_URL: http://localhost:8000
+      DATABASE_URL: postgresql+asyncpg://qr_app_user:devpassword@localhost/linkleaf_test
+      TEST_DATABASE_URL: postgresql+asyncpg://qr_app_user:devpassword@localhost/linkleaf_test
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      GCS_PUBLIC_BUCKET_NAME: ${{ secrets.GCS_PUBLIC_BUCKET_NAME }}
+      GCS_PRIVATE_BUCKET_NAME: ${{ secrets.GCS_PRIVATE_BUCKET_NAME }}
+      GCS_PROJECT_ID: ${{ secrets.GCS_PROJECT_ID }}
+      GCS_SERVICE_ACCOUNT_JSON: ${{ secrets.GCS_SERVICE_ACCOUNT_JSON }}
+      REVENUECAT_WEBHOOK_SECRET: ${{ secrets.REVENUECAT_WEBHOOK_SECRET }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-dev.txt', 'requirements-prod.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run migrations
+        run: alembic upgrade head
+
+      - name: Run test suite
+        run: pytest tests/ -v --cov=app --cov-report=term-missing
+
+      - name: Coverage check
+        run: pytest tests/ --cov=app --cov-fail-under=50

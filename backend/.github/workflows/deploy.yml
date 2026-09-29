@@ -1,0 +1,22 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloud Run (stub)
+        run: |
+          echo "Deployment to Cloud Run will be configured here"
+          echo "Tests passed — ready to deploy"
