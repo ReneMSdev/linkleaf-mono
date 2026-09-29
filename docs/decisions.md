@@ -36,3 +36,19 @@ entries: if a decision is reversed, add a new entry that references the old one.
 **Decision:** `ALLOWED_FIREBASE_UIDS` limits who can use the API. Unlisted UIDs get a 403 on protected routes and are treated as anonymous on optional-auth routes, and they never get a user row. An empty list means no restriction, but settings refuse to load in `staging` or `production` with an empty list.
 **Alternatives:** Relying only on Firebase's "disable sign-up" setting; allowlisting emails instead of UIDs.
 **Why:** Any valid Firebase token auto-created a user, and a mobile app's Firebase config is public, so strangers could create accounts and upload to the public bucket. The backend check holds even if Firebase settings change. UIDs are fixed; emails in tokens can be unverified. Failing closed stops a deploy from going out open by accident.
+
+## 2026-04 (imported): Backend design decisions from qr_backend
+
+Carried over from `PROJECT_STATUS.md` and `CURSOR_INSTRUCTIONS.md` in the archived `qr_backend` repo. The ones that are easy to check (grace period, reserved slugs, signed URL expiry, vCard branding) were checked against the code on 2026-09-29.
+
+- **Users are auto-provisioned on first Firebase login.** There's no `/register` endpoint. (Since 2026-09-29 this is restricted by the UID allowlist; see the entry above.)
+- **`qr_token` is immutable** and `/q/{token}` redirects to the current slug, so slug changes never break printed codes. Old slugs go to `slug_history` for permanent 301s.
+- **One umbrella `"premium"` entitlement**, not per-feature strings. The premium profile limit is 5, not unlimited, to prevent abuse. Résumés are premium-only.
+- **Themes: every user sees every theme.** Premium themes show as locked rather than hidden, because visibility drives upgrades. `check_theme_allowed()` also blocks applying one by UUID through the API.
+- **The vCard endpoint is public, and free-tier vCards carry a branding NOTE.** Every saved contact exposes the brand to someone new (organic acquisition). vCard 3.0 was chosen for compatibility.
+- **Images are processed on the server.** Uploads go through FastAPI and Pillow to GCS; the app never uploads to GCS directly. MIME types are checked from file bytes (`python-magic`), so a renamed file can't fake its type.
+- **There are two buckets.** A public one holds images; a private one holds résumés, served through 60-minute signed URLs that are generated on demand and never stored.
+- **The RevenueCat webhook always returns 200** (except for a bad secret), so RevenueCat never retries edge cases. CANCELLATION keeps entitlements until EXPIRATION.
+- **EXPIRATION soft-deletes content beyond the free limits.** The order matters: media on non-default profiles first, then those profiles, then the default profile's extra media.
+- **Soft deletes have a 30-day grace period** and apply to profiles and media only. Owners can restore within that window through the restore endpoints. A purge job for rows and GCS files was planned but never built.
+- **Planned architecture:** `linkleaf.co` would be Next.js, server-rendering `/p/{slug}` behind a CDN with a 60s TTL, and `api.linkleaf.co` would be FastAPI, both on Cloud Run. It was never built. An older note in the Cursor instructions assigned the profile viewer to Flutter web instead.

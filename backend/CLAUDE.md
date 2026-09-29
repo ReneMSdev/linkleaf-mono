@@ -33,3 +33,15 @@ users (`client`, `premium_client`, `anon_client`).
 
 - Schema changes go through a new Alembic revision (`alembic revision --autogenerate -m "..."`).
 - CI enforces at least 50% coverage.
+- Layers: `api/` → `domain/` → `core/`. Domains call other domains' service functions and
+  pass internal DTOs, never ORM objects or another domain's models. `core/db/registry.py`
+  is the one deliberate exception.
+- Services raise domain exceptions (`core/exceptions.py`); routers convert them to `HTTPException`.
+- Never name a service function plain `update` or `delete`, because that shadows SQLAlchemy's
+  imports. Use `update_profile()`, `delete_link()` and so on.
+- Everything is async: `async def` handlers and services, `AsyncSession` only. Run sync GCS
+  calls in a threadpool.
+- Modern typing (`str | None`), Pydantic v2, SQLAlchemy 2 `Mapped[...]`, and no hardcoded config.
+- Soft deletes apply to profiles and media only, and queries filter `deleted_at IS NULL`.
+  Public routes never show soft-deleted rows. Links, contacts, themes and users are hard-deleted.
+- `qr_token` never changes after creation, and slugs can't use `RESERVED_SLUGS` (`core/types.py`).
