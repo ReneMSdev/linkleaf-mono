@@ -1,10 +1,15 @@
-name: Test Suite
+name: Backend CI
 
 on:
   push:
-    branches: ['working']
-  pull_request:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
   workflow_call:
     secrets:
       SECRET_KEY:
@@ -27,6 +32,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
 
     services:
       postgres:
@@ -73,7 +82,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-dev.txt', 'requirements-prod.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements-dev.txt', 'backend/requirements-prod.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
