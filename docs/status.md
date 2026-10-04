@@ -7,7 +7,7 @@ The backend API runs locally and passes its tests in CI. The Flutter app is a UI
 on mock data: it builds for the web and passes default analysis, but has no tests, no lint
 config and no CI. The repo became a monorepo on 2026-09-28 (imported from `qr_backend` and
 `linkleaf-frontend`, both now archived on GitHub). Public at `ReneMSdev/linkleaf-mono`;
-`main` is at c14bf86 and `working` is 2 commits ahead (docs only).
+`main` and `working` are in sync on GitHub (2026-10-04).
 
 ## Backend
 
