@@ -15,7 +15,7 @@ config and no CI. The repo became a monorepo on 2026-09-28 (imported from `qr_ba
 media, and subscriptions. Public `/p/{slug}` and `/q/{qr_token}` URLs. One Alembic
 revision (`acbd5984e864_initial_schema`). The `organization` domain files have no code
 (0 statements). The API is limited to allowlisted Firebase UIDs (`ALLOWED_FIREBASE_UIDS`);
-the local `.env` lists 2. Diagrams are in `ARCHITECTURE.md`.
+the local `.env` lists 2. Diagrams are in `docs/architecture.md`.
 
 | Check | Result | Evidence |
 |---|---|---|
@@ -47,11 +47,11 @@ the local `.env` lists 2. Diagrams are in `ARCHITECTURE.md`.
 
 ## Portfolio
 
-The LinkLeaf portfolio handoff (`ENTRY.md` + `linkleaf-1.jpg`) is in `portfolio-website/docs/portfolio-handoff/linkleaf/`, committed there as 270f2b1 on its `working` branch and not pushed. One choice is still open in it: lessons-learned option A or B.
+The LinkLeaf portfolio handoff (`entry.md` + `linkleaf-1.jpg`) is in `portfolio-website/docs/portfolio-handoff/linkleaf/`, committed there as 270f2b1 on its `working` branch and not pushed. One choice is still open in it: lessons-learned option A or B.
 
 <!--
 Rules for this file:
 - Rewrite it to describe the current state. It isn't a log; history lives in git.
 - Every "passing" or "works" claim needs evidence from a run, or it's marked unverified.
-- Future work goes in TODO.md, and reasons in decisions.md.
+- Future work goes in todo.md, and reasons in decisions.md.
 -->

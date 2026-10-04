@@ -58,3 +58,14 @@ Carried over from `PROJECT_STATUS.md` and `CURSOR_INSTRUCTIONS.md` in the archiv
 **Decision:** `qr_backend` and `linkleaf-frontend` are archived on GitHub (private, read-only, description pointing here) after their Actions secrets were deleted. Their tracking docs weren't copied wholesale: coding rules went to `backend/CLAUDE.md`, design reasons to the imported entry above, and post-MVP ideas to `TODO.md`. The local clones moved to `~/Dev/_archive/`.
 **Alternatives:** Deleting the repos; copying the old status, handoff and Cursor docs into `docs/` as they were.
 **Why:** All code history is already in this repo, but the old docs are only in the archived repos, and archiving is reversible. The secrets had to go first because archived repos are read-only. René didn't need the full handoff or status history, and several old claims no longer matched the code (portfolio limit 10 vs 100, an unbuilt "regenerate QR" endpoint).
+
+## 2026-10-04: Lowercase file names in docs/
+
+**Decision:** Every file in `docs/` uses a lowercase, hyphenated name (`status.md`, `todo.md`,
+`decisions.md`, `architecture.md`, ...). A root `ARCHITECTURE.md` moves to
+`docs/architecture.md`. `README.md` and `CLAUDE.md` stay uppercase at the root. Earlier
+entries here keep the old names as written.
+**Alternatives:** Keep the mixed casing (uppercase `STATUS.md`/`TODO.md`, lowercase
+`decisions.md`).
+**Why:** The user wanted consistent names. Lowercase with hyphens is the common convention
+inside docs folders. Changed at the same time in the global config (`~/Dev/claude-config`).

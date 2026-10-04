@@ -20,7 +20,7 @@ Minimal deploy for in-person networking, in order:
 
 Other:
 
-- [ ] Portfolio: in the `portfolio-website` session, pick lessons-learned option A or B in `docs/portfolio-handoff/linkleaf/ENTRY.md` and import the entry (its commit 270f2b1 there isn't pushed yet).
+- [ ] Portfolio: in the `portfolio-website` session, pick lessons-learned option A or B in `docs/portfolio-handoff/linkleaf/entry.md` and import the entry (its commit 270f2b1 there isn't pushed yet).
 - [ ] Bug: restoring a soft-deleted profile or media item only checks the 30-day window, not the plan. A user who dropped to free can restore premium profiles, portfolio images and résumés (`profile/service.py` `restore`, `media/service.py` `restore_media`).
 - [ ] Portfolio cleanup (ask before doing): the `print()` debug lines in `app/auth/dependencies.py` (swap for structlog) and the empty `organization` domain scaffold.
 - [ ] Mobile: fill `analysis_options.yaml` (`include: package:flutter_lints/flutter.yaml`). It's empty now, so the lint rules aren't enforced.
@@ -58,7 +58,7 @@ Other:
 ## Done recently
 <!-- /wrapup moves finished items here with a date. Keep about the last 10. -->
 - [x] Portfolio handoff for LinkLeaf: entry, screenshot and four diagrams, verified against the code (2026-09-29)
-- [x] `ARCHITECTURE.md` with system, auth, QR/public-profile and subscription diagrams (2026-09-29)
+- [x] `docs/architecture.md` with system, auth, QR/public-profile and subscription diagrams (2026-09-29)
 - [x] Old repos `qr_backend` and `linkleaf-frontend` archived (secrets deleted first); useful notes imported into `docs/` and `backend/CLAUDE.md` (2026-09-29)
 - [x] Document local backend setup: README "Running locally" covers the settings and the `linkleaf_test` DB (2026-09-29)
 - [x] Confirmed the backend runs locally: dev DB migrated, themes seeded, `/health` 200 (2026-09-29)

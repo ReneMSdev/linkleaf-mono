@@ -18,7 +18,7 @@ contact details, media and a theme, and share it through a short URL or a QR cod
 | [`docs/`](docs/) | Current status, backlog and decision log |
 
 Diagrams of the system, the auth flow, the QR/public-profile flow and the subscription
-lifecycle are in [`ARCHITECTURE.md`](ARCHITECTURE.md).
+lifecycle are in [`docs/architecture.md`](docs/architecture.md).
 
 ## Backend
 
